@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'hz3tx--&mwt!w2c98wfj=il)5)nn*-7-9(3+j7*y*53&$e#k6d')
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -21,6 +21,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['192.168.8.163', '192.168.8.30', '127.0.0.1']
 
+INTERNAL_IPS = [
+    # ...
+    "127.0.0.1",
+    # ...
+]
 
 # Application definition
 
@@ -35,7 +40,8 @@ INSTALLED_APPS = [
     'tehnolog.apps.TehnologConfig',
     'scheduler.apps.SchedulerConfig',
     'worker.apps.WorkerConfig',
-    'constructor.apps.ConstructorConfig'
+    'constructor.apps.ConstructorConfig',
+    "debug_toolbar",
 
 ]
 
@@ -47,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 
@@ -71,24 +78,24 @@ TEMPLATES = [
 WSGI_APPLICATION = 'omzit_terminal.wsgi.application'
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'terminal',
-        'USER': 'admin',
-        'PASSWORD': 'Epass1',
-        'HOST': 'localhost',
-        # 'HOST': '192.168.8.163'
-        # 'HOST': '192.168.8.30'
-        'PORT': '',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'terminal',
+#         'USER': 'admin',
+#         'PASSWORD': 'Epass1',
+#         'HOST': 'localhost',
+#         # 'HOST': '192.168.8.163'
+#         # 'HOST': '192.168.8.30'
+#         'PORT': '',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

@@ -4,7 +4,7 @@ import os
 import re
 import time
 
-from aiogram import Bot, Dispatcher, executor, types, filters
+from aiogram import Bot, Dispatcher, types, filters
 # работа с БД
 from terminal_db import (ws_list_get, status_change_to_otk, st_list_get, master_id_get, control_man_id_set,
                          decision_data_set)
@@ -15,54 +15,73 @@ TOKEN = os.getenv('RSU_TOKEN')
 
 # ids
 admin_id = int(os.getenv('ADMIN_TELEGRAM_ID'))
-posohov_id = 2051721470  # цех 1
-ermishkin_id = 5221029965
-gordii_id = 6374431046
-kondratiev_id = 6125791135
-achmetov_id = 1153114403
+chekalovets_id = 886700102
+# posohov_id = 2051721470  # цех 1
+# ermishkin_id = 5221029965
+# gordii_id = 6374431046
+# kondratiev_id = 6125791135
+# achmetov_id = 1153114403
+#
+# savchenko_id = 2131171377  # ПДО
+# pavluchenkova_id = 1151694995
+#
+# averkina_id = 1563020113  # ОТК
+# donskaya_id = 6359131276
+#
+# mhitaryan_id = 413559952  # ПКО
+# saks_id = 1366631138  # ОГТ
+# # groups
+omzit_otk_group_id = -4027358064
+terminal_group_id = -4027358064
+omzit_master_group1_id = -4027358064
 
-savchenko_id = 2131171377  # ПДО
-pavluchenkova_id = 1151694995
-
-averkina_id = 1563020113  # ОТК
-donskaya_id = 6359131276
-
-mhitaryan_id = 413559952  # ПКО
-saks_id = 1366631138  # ОГТ
-# groups
-omzit_otk_group_id = -981440150
-terminal_group_id = -908012934
-omzit_master_group1_id = -4005524766
 # fios
-id_fios = {admin_id: 'Екименко М.А.',
-           posohov_id: 'Посохов О.С.',
-           ermishkin_id: 'Ермишкин В.М.',  # Мастера
-           gordii_id: 'Гордий В.В.',
-           kondratiev_id: 'Кондратьев П.В.',
-           achmetov_id: 'Ахметов К.',
-           savchenko_id: 'Савченко Е.Н.',  # ПДО
-           pavluchenkova_id: 'Павлюченкова Н. Л.',
-           donskaya_id: 'Донская Ю.Г.',  # ОТК
-           averkina_id: 'Аверкина О.В.',
-           mhitaryan_id: 'Мхитарян К.',  # ПКО
-           saks_id: 'Сакс В.И.'  # ОГТ
+# id_fios = {
+#        admin_id: 'Екименко М.А.',
+#        posohov_id: 'Посохов О.С.',
+#        ermishkin_id: 'Ермишкин В.М.',  # Мастера
+#        gordii_id: 'Гордий В.В.',
+#        kondratiev_id: 'Кондратьев П.В.',
+#        achmetov_id: 'Ахметов К.',
+#        savchenko_id: 'Савченко Е.Н.',  # ПДО
+#        pavluchenkova_id: 'Павлюченкова Н. Л.',
+#        donskaya_id: 'Донская Ю.Г.',  # ОТК
+#        averkina_id: 'Аверкина О.В.',
+#        mhitaryan_id: 'Мхитарян К.',  # ПКО
+#        saks_id: 'Сакс В.И.', # ОГТ
+#     }
 
-           }
+id_fios = {
+       admin_id: 'Екименко М.А.',
+       chekalovets_id: 'Чекаловец А.В.'
+    }
 
 # пользователи имеющие доступ
+# users = (admin_id,  # root
+#          posohov_id, ermishkin_id, gordii_id, kondratiev_id, achmetov_id,  # производство
+#          savchenko_id, pavluchenkova_id,  # ПДО
+#          donskaya_id, averkina_id,  # ОТК
+#          mhitaryan_id,  # ПКО
+#          saks_id,  # ОГТ
+#          )
 users = (admin_id,  # root
-         posohov_id, ermishkin_id, gordii_id, kondratiev_id, achmetov_id,  # производство
-         savchenko_id, pavluchenkova_id,  # ПДО
-         donskaya_id, averkina_id,  # ОТК
-         mhitaryan_id,  # ПКО
-         saks_id,  # ОГТ
+         chekalovets_id,  # ОГТ
          )
 
-masters = (admin_id, ermishkin_id, posohov_id, gordii_id, kondratiev_id, achmetov_id)  # производство
+# masters = (admin_id, ermishkin_id, posohov_id, gordii_id, kondratiev_id, achmetov_id)  # производство
 
-dispatchers = (admin_id, savchenko_id, pavluchenkova_id,)  # диспетчеры
+masters = (admin_id,)  # производство
 
-control_mans_list = (admin_id, donskaya_id, averkina_id)  # контролёры
+
+# dispatchers = (admin_id, savchenko_id, pavluchenkova_id,)  # диспетчеры
+
+dispatchers = (admin_id,)  # диспетчеры
+
+
+# control_mans_list = (admin_id, donskaya_id, averkina_id)  # контролёры
+
+control_mans_list = (admin_id,)  # контролёры
+
 
 bot = Bot(token=TOKEN)  # инициализация бота
 dp = Dispatcher(bot)  # инициализация диспетчера
@@ -297,4 +316,4 @@ async def on_shutdown(_):  # функция выполняется при зав
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown, timeout=10)
+    dp.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown, timeout=10)

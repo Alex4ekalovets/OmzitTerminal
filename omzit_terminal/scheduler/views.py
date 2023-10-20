@@ -262,15 +262,27 @@ class LoginUser(LoginView):
     template_name = 'scheduler/login.html'
 
     def get_success_url(self):  # редирект после логина
-        if 'admin' in self.request.user.username:
+        user = self.request.user
+        if user.is_superuser:
             return reverse_lazy('home')
-        elif 'disp' in self.request.user.username:
-            return reverse_lazy('scheduler')
-        elif 'tehnolog' in self.request.user.username:
-            return reverse_lazy('tehnolog')
-        elif 'constructor' in self.request.user.username:
-            return reverse_lazy('constructor')
-        print(self.request.user.username)
+        groups_urls = {
+            'technologist': 'tehnolog',
+            'dispatcher': 'scheduler',
+            'constructor': 'constructor',
+        }
+        user_groups = user.groups.filter(name__in=groups_urls.keys()).values_list("name", flat=True)
+        if len(user_groups) > 0:
+            return reverse_lazy(groups_urls.get(user_groups[0], 'home'))
+        return reverse_lazy('home')
+
+        # if 'admin' in self.request.user.username:
+        #     return reverse_lazy('home')
+        # elif 'disp' in self.request.user.username:
+        #     return reverse_lazy('scheduler')
+        # elif 'tehnolog' in self.request.user.username:
+        #     return reverse_lazy('tehnolog')
+        # elif 'constructor' in self.request.user.username:
+        #     return reverse_lazy('constructor')
 
 
 def logout_user(request):  # разлогинивание пользователя

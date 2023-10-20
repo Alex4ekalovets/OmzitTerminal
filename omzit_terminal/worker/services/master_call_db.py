@@ -1,7 +1,7 @@
 import datetime
-
-import psycopg2
-from .db_config import host, dbname, user, password  # TODO перенести в env весь файл db_config
+import sqlite3
+# import psycopg2
+# from .db_config import host, dbname, user, password  # TODO перенести в env весь файл db_config
 
 
 def select_master_call(ws_number: str, st_number) -> list or None:
@@ -15,7 +15,8 @@ def select_master_call(ws_number: str, st_number) -> list or None:
     messages_to_master = []  # список сообщений для мастера
     try:
         # подключение к БД
-        con = psycopg2.connect(dbname=dbname, user=user, password=password, host=host)
+        con = sqlite3.connect('my_database.db')
+        # con = psycopg2.connect(dbname=dbname, user=user, password=password, host=host)
         con.autocommit = True
         # запрос на все статусы ожидания мастера
         select_query = f"""SELECT id, model_name, "order", op_number, op_name_full, fio_doer

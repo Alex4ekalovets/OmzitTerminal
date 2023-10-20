@@ -2,7 +2,7 @@ import datetime
 import os
 import asyncio
 
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.shortcuts import render, redirect
 from .services.service_handlers import handle_uploaded_file
 from .services.tech_data_get import tech_data_get
@@ -12,40 +12,45 @@ from worker.services.master_call_function import terminal_message_to_id
 from django.core.exceptions import PermissionDenied
 
 
+
 @login_required(login_url="../scheduler/login/")
+@permission_required("scheduler.view_workshopschedule", login_url="../scheduler/login/")
 def tehnolog_wp(request):
     """
     Загрузка технологических данных
     :param request:
     :return:
     """
-    group_id = -908012934  # тг группа
+    group_id = -4027358064  # тг группа
+    # group_id = -908012934  # тг группа
     td_queries = (WorkshopSchedule.objects.values('model_order_query', 'query_prior', 'td_status')
                   .exclude(td_status='завершено'))
     change_model_query_form = ChangeOrderModel()
     send_draw_back_form = SendDrawBack()
     alert = ''
     print(request.user.username[:8], 'tehnolog')
-    if str(request.user.username).strip() != "admin" and str(request.user.username[:8]).strip() != "tehnolog":
-        raise PermissionDenied
-
+    # if str(request.user.username).strip() != "admin" and str(request.user.username[:8]).strip() != "tehnolog":
+    #     raise PermissionDenied
 
     if request.method == 'POST':
         get_teh_data_form = GetTehDataForm(request.POST, request.FILES)  # класс форм с частично заполненными данными
         if get_teh_data_form.is_valid():
             # ключ excel_file в словаре request.FILES должен быть равен имени формы созданной в классе
             # GetTehDataForm
-            filename = str(dict(request.FILES)["excel_file"][0])  # имя файла
+            file = request.FILES['excel_file']
+            filename = file.name
+            file_extension = os.path.splitext(filename)[1] # имя файла и расширение
             # обработка выбора не excel файла
-            if '.xlsx' not in filename:
+            if file_extension != '.xlsx':
                 get_teh_data_form.add_error(None, 'Файл должен быть .xlsx!')
                 context = {'get_teh_data_form': get_teh_data_form, 'td_queries': td_queries, 'alert': alert,
                            'change_model_query_form': change_model_query_form,
                            'send_draw_back_form': send_draw_back_form}
                 return render(request, r"tehnolog/tehnolog.html", context=context)
-            file_save_path = os.getcwd() + r'\xlsx\\'
+            file_save_path = os.path.join(os.getcwd(), 'xlsx')
+            os.makedirs(file_save_path, exist_ok=True)
             # обработчик загрузки файла
-            xlsx_file = handle_uploaded_file(f=request.FILES["excel_file"], filename=filename,
+            xlsx_file = handle_uploaded_file(f=file, filename=filename,
                                              path=file_save_path)
             list_names = get_teh_data_form.cleaned_data['list_names'].split(',')
             exception_names = get_teh_data_form.cleaned_data['exception_names']
@@ -87,7 +92,8 @@ def send_draw_back(request):
     :param request:
     :return:
     """
-    group_id = -908012934  # тг группа
+    group_id = -4027358064  # тг группа
+    # group_id = -908012934  # тг группа
     if request.method == 'POST':
         send_draw_back_form = SendDrawBack(request.POST)
         if send_draw_back_form.is_valid():

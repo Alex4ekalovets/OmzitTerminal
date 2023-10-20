@@ -114,7 +114,7 @@ class ShiftTask(models.Model):
     excel_list_name = models.CharField(max_length=100, null=True, verbose_name='Лист excel технологического процесса')
     draw_path = models.CharField(max_length=255, null=True, blank=True, verbose_name='путь к связанным чертежам')
     draw_filename = models.TextField(null=True, blank=True, verbose_name='имя чертежа')
-    product_category = models.CharField(null=True, verbose_name='Категория изделия')
+    product_category = models.CharField(max_length=255, null=True, verbose_name='Категория изделия')
 
     class Meta:
         db_table = "shift_task"

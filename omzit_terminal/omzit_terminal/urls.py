@@ -11,6 +11,7 @@ urlpatterns = [
     path('constructor/', include('constructor.urls')),
     # TODO отредактировать после тестов
     path('pdf', get_pdf),
+    path("__debug__/", include("debug_toolbar.urls")),
 
 ]
 

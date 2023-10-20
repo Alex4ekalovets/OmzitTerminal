@@ -1,9 +1,14 @@
 import os
 from aiogram import Bot, Dispatcher
+from dotenv import load_dotenv
+dotenv_path = 'D:\Projects\OmzitTerminal\.env'
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
 TOKEN = os.getenv('RSU_TOKEN')
 
 bot = Bot(token=TOKEN)  # инициализация бота
-dp = Dispatcher(bot)  # инициализация диспетчера
+dp = Dispatcher()  # инициализация диспетчера
 # ids
 # admin_id = int(os.getenv('ADMIN_TELEGRAM_ID'))
 # users = (admin_id,)  # админ
@@ -18,7 +23,8 @@ dp = Dispatcher(bot)  # инициализация диспетчера
 # dispatcher_list = (admin_id, savchenko_id, pavluchenkova_id,)  # диспетчеры
 # master_list = (admin_id, ermishkin_id, posohov_id, gordii_id, kondratiev_id, achmetov_id)  # производство
 # группа мастеров
-omzit_master_group1_id = -4005524766
+# omzit_master_group1_id = -4005524766
+omzit_master_group1_id = -4027358064
 
 
 async def send_call_master(message_to_master):
