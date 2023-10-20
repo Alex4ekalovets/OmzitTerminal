@@ -161,7 +161,7 @@ cython_debug/
 
 # project_files
 misc/
-*.xlsx
+#*.xlsx
 db_config.py
 terminal.db
 xlsx
