@@ -11,5 +11,8 @@ def handle_uploaded_file(f, filename: str, path: str) -> str:
     """
     with open(os.path.join(path, filename), 'wb+') as destination:
         for chunk in f.chunks():
-            destination.write(chunk)
+            try:
+                destination.write(chunk)
+            except Exception as e:
+                print(e, f"Ошибка копирования файла! {destination.name}")
     return destination.name

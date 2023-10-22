@@ -1,7 +1,7 @@
 import os
 from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
-dotenv_path = 'D:\Projects\OmzitTerminal\.env'
+dotenv_path = '/Users/MacAlex/WorkFolder/Python/Projects/omzit_terminal/.env'
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
 

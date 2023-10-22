@@ -50,14 +50,14 @@ def worker(request, ws_number):
     :return:
     """
     # список разрешённых по имени компа
-    allowed_terminal_list = ('APM-0036.omep.net.ru',  # Екименко
-                             'SPR-008.omep.net.ru',  # Терминал №3
-                             'APM-0168.omep.net.ru',  # Отто
-                             'SVR-003.omep.net.ru')  # сервер 192.168.8.30
-    terminal_ip = get_client_ip(request)  # определение IP терминала
-    terminal_name = socket.getfqdn(terminal_ip)  # определение полного имени по IP
-    if terminal_name not in allowed_terminal_list:
-        raise PermissionDenied
+    # allowed_terminal_list = ('APM-0036.omep.net.ru',  # Екименко
+    #                          'SPR-008.omep.net.ru',  # Терминал №3
+    #                          'APM-0168.omep.net.ru',  # Отто
+    #                          'SVR-003.omep.net.ru')  # сервер 192.168.8.30
+    # terminal_ip = get_client_ip(request)  # определение IP терминала
+    # terminal_name = socket.getfqdn(terminal_ip)  # определение полного имени по IP
+    # if terminal_name not in allowed_terminal_list:
+    #     raise PermissionDenied
 
     # вывод таблицы распределённых РЦ
     today = datetime.datetime.now().strftime('%d.%m.%Y')
@@ -203,6 +203,7 @@ def make_master_call(request, ws_st_number):
         print('Вызов мастера')
         for message in messages:
             asyncio.run(send_call_master(message))  # отправка в группу мастерам телеграм ботом
+            print(message)
             # отправка в группу
             # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=message))
         print('Окончание вызова')
@@ -231,7 +232,8 @@ def make_dispatcher_call(request, ws_st_number):
     if messages:
         print('Вызов диспетчера')
         for message in messages:
-            asyncio.run(send_call_dispatcher(message))  # отправка в группу мастерам и диспетчерам телеграм ботом
+            # asyncio.run(send_call_dispatcher(message))  # отправка в группу мастерам и диспетчерам телеграм ботом
+            print(message)
             # отправка в группу
             # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=message))
         print('Окончание вызова')

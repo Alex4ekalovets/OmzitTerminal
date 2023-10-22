@@ -33,6 +33,7 @@ def scheduler(request):
     group_id = -908012934  # тг группа
     # обновление процента готовности всех заказов
     # TODO модифицировать расчёт процента готовности всех заказов по взвешенной трудоёмкости
+    #  сделать невозможным заполнять запрос с кириллицей
     get_all_done_rate()
     # график изделий
     workshop_schedule = (WorkshopSchedule.objects.values('workshop', 'order', 'model_name', 'datetime_done',
@@ -85,7 +86,8 @@ def scheduler(request):
                                          f"{form_workshop_plan.cleaned_data['model_order_query'].model_order_query} "
                                          f"успешно запланирован на {form_workshop_plan.cleaned_data['datetime_done']}. "
                                          f"Запланировал: {request.user.first_name} {request.user.last_name}.")
-                asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+                print(success_group_message, group_id)
             except Exception as e:
                 print(e, ' Ошибка запаси в базу SchedulerWorkshop')
                 alert = f'Ошибка занесения данных.'
@@ -140,7 +142,8 @@ def td_query(request):
                                          f"{form_query_draw.cleaned_data['order_query']}. Приоритет: "
                                          f"{form_query_draw.cleaned_data['query_prior']}. "
                                          f"Заявку составил: {request.user.first_name} {request.user.last_name}.")
-                asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+                print(success_group_message, group_id)
                 # создание папки в общем доступе для чертежей модели
                 if not os.path.exists(rf'C:\draws\{model_order_query}'):
                     os.mkdir(rf'C:\draws\{model_order_query}')

@@ -15,20 +15,21 @@ def select_master_call(ws_number: str, st_number) -> list or None:
     messages_to_master = []  # список сообщений для мастера
     try:
         # подключение к БД
-        con = sqlite3.connect('my_database.db')
+        con = sqlite3.connect('/Users/MacAlex/WorkFolder/Python/Projects/omzit_terminal/omzit_terminal/db.sqlite3')
         # con = psycopg2.connect(dbname=dbname, user=user, password=password, host=host)
-        con.autocommit = True
+        # con.autocommit = True
         # запрос на все статусы ожидания мастера
         select_query = f"""SELECT id, model_name, "order", op_number, op_name_full, fio_doer
                         FROM shift_task
-                        WHERE st_status='в работе' AND
-                        id = '{st_number}'               
+                        WHERE st_status='в работе'  
+                        id = '{st_number}'           
                         """
         try:
-            with con.cursor() as cur:
+                cur = con.cursor()
                 cur.execute(select_query)
                 con.commit()
                 shift_tasks = cur.fetchall()
+                print(shift_tasks)
                 for task in shift_tasks:
                     # print(task)
                     message_to_master = (f"Мастера ожидают на Т{ws_number}. Номер СЗ: {task[0]}. Заказ: {task[1]}. "
