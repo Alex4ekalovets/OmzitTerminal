@@ -33,7 +33,8 @@ async def send_call_master(message_to_master):
     :param message_to_master:
     :return:
     """
-    await bot.send_message(chat_id=omzit_master_group1_id, text=message_to_master)
+    await bot.send_message(chat_id=886700102, text=message_to_master)
+
 
 
 async def send_call_dispatcher(message_to_master):

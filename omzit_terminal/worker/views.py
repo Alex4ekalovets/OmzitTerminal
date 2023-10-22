@@ -196,7 +196,7 @@ def make_master_call(request, ws_st_number):
     # if st_number == '0':
     #     return redirect(f'/worker/{ws_number}?call=False')
     # выборка вызовов мастера на РЦ ws_number
-    messages = select_master_call(ws_number=str(ws_number), st_number=str(st_number))
+    messages = select_master_call(ws_number=str(ws_number), st_number=int(st_number))
     print('messages=', messages)
     time.sleep(1)  # пауза 1 сек
     if messages:

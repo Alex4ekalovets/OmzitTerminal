@@ -21,8 +21,7 @@ def select_master_call(ws_number: str, st_number) -> list or None:
         # запрос на все статусы ожидания мастера
         select_query = f"""SELECT id, model_name, "order", op_number, op_name_full, fio_doer
                         FROM shift_task
-                        WHERE st_status='в работе'  
-                        id = '{st_number}'           
+                        WHERE st_status='в работе' AND id={st_number}          
                         """
         try:
                 cur = con.cursor()
@@ -43,10 +42,10 @@ def select_master_call(ws_number: str, st_number) -> list or None:
         else:  # обновление переменной факта вызова мастера
             print('Обновление статуса')
             update_query = f"""UPDATE shift_task SET master_called = 'вызван', st_status='ожидание мастера'
-                                        WHERE id = '{st_number}';
+                                        WHERE id={st_number};
                             """
             try:
-                with con.cursor() as cur:
+                    cur = con.cursor()
                     cur.execute(update_query)
                     con.commit()
             except Exception as e:
