@@ -21,11 +21,11 @@ def tech_data_get(model_order_query: str, exel_file: str, excel_lists: list = No
     ex_wb = openpyxl.load_workbook(exel_file, data_only=True)
     # получение списка моделей изделия, если не указана модель
     # Если список моделей не указан явно, то забираем имена моделей из листов
-    if excel_lists is None:
-        excel_lists = []
-        for sheet_name in ex_wb.sheetnames:
-            if sheet_name not in exclusion_list:
-                excel_lists.append(sheet_name)
+    # if excel_lists is None:
+    #     excel_lists = []
+    #     for sheet_name in ex_wb.sheetnames:
+    #         if sheet_name not in exclusion_list:
+    #             excel_lists.append(sheet_name)
     # имя модели в базу
     model_from_model_order_query = model_order_query[model_order_query.find("_") + 1:]
     # номер заказа в базу модели в базу
