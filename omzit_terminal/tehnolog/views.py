@@ -52,6 +52,7 @@ def tehnolog_wp(request):
             # обработчик загрузки файла
             xlsx_file = handle_uploaded_file(f=file, filename=filename,
                                              path=file_save_path)
+            print('filename=', filename, 'path=', file_save_path, 'xlsx=', xlsx_file)
             list_names = get_teh_data_form.cleaned_data['list_names'].split(',')
             exception_names = get_teh_data_form.cleaned_data['exception_names']
             # вызов сервиса получения данных из xlsx
@@ -67,15 +68,21 @@ def tehnolog_wp(request):
                          td_tehnolog_done_datetime=datetime.datetime.now()
                          ))
                 # сообщение в группу
+                success_message = True
+            except Exception as e:
+                print(f'Ошибка загрузки {filename}', e)
+                alert = f'Ошибка загрузки {filename}'
+                success_message = False
+            if success_message:
                 success_group_message = (f"Загружен технологический процесс. Заказ-модель: "
                                          f"{get_teh_data_form.cleaned_data['model_order_query'].model_order_query} "
                                          f"доступен для планирования. "
                                          f"Данные загрузил: {request.user.first_name} {request.user.last_name}."
                                          )
-                asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
-            except Exception as e:
-                print(f'Ошибка загрузки {filename}', e)
-                alert = f'Ошибка загрузки {filename}'
+                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+                print(success_group_message, group_id)
+            else:
+                print('Ошибка загрузки')
             print(get_teh_data_form.cleaned_data)
     else:
         get_teh_data_form = GetTehDataForm()  # чистая форма для первого запуска
@@ -113,7 +120,8 @@ def send_draw_back(request):
                                      f"возвращено с замечанием: {send_draw_back_form.cleaned_data['td_remarks']}. "
                                      f"КД вернул: {request.user.first_name} {request.user.last_name}."
                                      )
-            asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+            # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+            print(success_group_message, group_id)
         else:
             pass
 
@@ -146,7 +154,8 @@ def new_model_query(request):
                                      f"{new_model_order_query}. "
                                      f"Откорректировал: {request.user.first_name} {request.user.last_name}."
                                      )
-            asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+            # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+            print(success_group_message, group_id)
         else:
             pass
     return redirect('tehnolog')  # обновление страницы при успехе

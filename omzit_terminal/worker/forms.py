@@ -16,7 +16,9 @@ class WorkplaceChoose(forms.Form):
     """
     Форма для выбора РЦ
     """
-    query_set = ShiftTask.objects.all().distinct('ws_number')
+    # только pg
+    # query_set = ShiftTask.objects.all().distinct('ws_number')
+    query_set = ShiftTask.objects.all()
     ws_number = WorkplaceChooseLabel(queryset=query_set, empty_label='РЦ не выбран',
                                      label='Выберите номер РЦ')
 
