@@ -67,7 +67,7 @@ class SchedulerWorkplace(forms.Form):
     """
     # только pg
     # query_set_wp = ShiftTask.objects.all().distinct('ws_number')
-    query_set_wp = ShiftTask.objects.values('ws_number').distinct()
+    query_set_wp = ShiftTask.objects.all().distinct()
     ws_number = SchedulerWorkplaceLabel(queryset=query_set_wp, empty_label='РЦ не выбран', label='Рабочий центр')
     query_set_datetime_done = WorkshopSchedule.objects.filter(Q(order_status='запланировано') |
                                                               Q(order_status='в работе'))

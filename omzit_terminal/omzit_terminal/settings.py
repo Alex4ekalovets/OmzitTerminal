@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'worker.apps.WorkerConfig',
     'constructor.apps.ConstructorConfig',
     "debug_toolbar",
-
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -143,7 +143,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/files/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'files')
 
-
+FILTERS_EMPTY_CHOICE_LABEL = ''
 
 
 # DATE_FORMAT = ['%d.%m.%Y']

@@ -15,7 +15,7 @@ def select_master_call(ws_number: str, st_number) -> list or None:
     messages_to_master = []  # список сообщений для мастера
     try:
         # подключение к БД
-        con = sqlite3.connect('/Users/MacAlex/WorkFolder/Python/Projects/omzit_terminal/omzit_terminal/db.sqlite3')
+        con = sqlite3.connect('D:\Projects\OmzitTerminal\omzit_terminal\db.sqlite3')
         # con = psycopg2.connect(dbname=dbname, user=user, password=password, host=host)
         # con.autocommit = True
         # запрос на все статусы ожидания мастера

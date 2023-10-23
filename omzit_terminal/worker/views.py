@@ -1,4 +1,5 @@
 import datetime
+import re
 import time
 import asyncio
 import socket
@@ -75,7 +76,7 @@ def worker(request, ws_number):
     select_shift_task = ((ShiftTask.objects.values('id', 'ws_number', 'model_name', 'order', 'op_number',
                                                    'op_name_full', 'norm_tech', 'fio_doer', 'st_status',
                                                    'datetime_job_start', 'decision_time')
-                          .filter(ws_number=ws_number)).exclude(fio_doer='не распределено')
+                         .filter(ws_number=ws_number)).exclude(fio_doer='не распределено')
                          .exclude(st_status='брак')
                          .exclude(st_status='не принято')
                          .exclude(st_status='принято')
@@ -85,24 +86,21 @@ def worker(request, ws_number):
         print(request.POST)
         if 'сменное' not in request.POST['task_id']:
             # определение id записи
-            if 'брак' in request.POST['task_id']:
-                alert_message = 'Это СЗ уже принято как БРАК. Необходимо перепланирование.'
-            elif 'принято' in request.POST['task_id']:
-                alert_message = 'Сменно задание закрыто.'
-            elif 'ожидание мастера' in request.POST['task_id']:
-                alert_message = 'Мастер УЖЕ вызван.'
-            elif 'ожидание контролёра' in request.POST['task_id']:
-                alert_message = 'Ожидается контролёр.'
-            elif 'в работе' in request.POST['task_id']:
-                alert_message = 'Требуется вызов мастера'
-            elif 'запланировано' in request.POST['task_id']:
-                alert_message = 'СЗ принято в работу.'
-            else:
-                alert_message = 'Все ок'
+            status_messages = {
+                'брак': 'Это СЗ уже принято как БРАК. Необходимо перепланирование.',
+                'принято': 'Сменно задание закрыто.',
+                'ожидание мастера': 'Мастер УЖЕ вызван.',
+                'ожидание контролёра': 'Ожидается контролёр.',
+                'в работе': 'Требуется вызов мастера',
+                'запланировано': 'СЗ принято в работу.'
+            }
+            status = re.search(r'\w*?--([а-яА-Я\s]*?)--', request.POST['task_id'])[1]
+            print(status)
+            alert_message = status_messages.get(status, 'Все ок')
             index = request.POST['task_id'].find('--')
             task_id = request.POST['task_id'][:index]
             # статус в работе
-            if 'запланировано' in request.POST['task_id']:  # если статус запланировано установка статуса в работе
+            if status == 'запланировано':  # если статус запланировано установка статуса в работе
                 # if 'ожидание мастера' not in request.POST['task_id']:  # если нет статуса ожидания мастера
                 print('task_id: ', task_id)
                 # обновление данных
@@ -119,16 +117,13 @@ def worker(request, ws_number):
             print('Выберите ещё раз.')
             alert_message = 'Неверный выбор. Выберите ещё раз. '
     else:
-        if request.GET.get('call') == 'True':
-            alert_message = 'Вызов мастеру отправлен.'
-        elif request.GET.get('call') == 'False_wrong':
-            alert_message = 'Неверный выбор.'
-        elif request.GET.get('call') == 'False':
-            alert_message = 'Сменное задание не принято в работу или вызов мастеру был отправлен ранее.'
-        elif request.GET.get('call') == 'True_disp':
-            alert_message = 'Сообщение диспетчеру отправлено.'
-        else:
-            alert_message = ''
+        call_messages = {
+            'True': 'Вызов мастеру отправлен.',
+            'False': 'Сменное задание не принято в работу или вызов мастеру был отправлен ранее.',
+            'False_wrong': 'Неверный выбор.',
+            'True_disp': 'Сообщение диспетчеру отправлено.',
+        }
+        alert_message = call_messages.get(request.GET.get('call'), '')
     print('select_shift_task', select_shift_task)
     context = {'initial_shift_tasks': initial_shift_tasks, 'ws_number': ws_number,
                'select_shift_task': select_shift_task, 'alert': alert_message}

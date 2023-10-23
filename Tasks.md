@@ -22,24 +22,64 @@
 ```
 -[ ] `QueryAnswerForm` заменить на `QueryChoiceField`
 -[ ] Два одинаковых запроса дублируются в двух формах `tehnolog.forms.GetTehDataForm`, `tehnolog.forms.ChangeOrderModel`
--[ ] Какие статусы еще есть, почему не исключить записи только по времени
-```python
-    initial_shift_tasks = (ShiftTask.objects.values('id', 'ws_number', 'model_name', 'order', 'op_number',
-                                                    'op_name_full', 'norm_tech', 'fio_doer', 'st_status',
-                                                    'datetime_job_start', 'decision_time')
-                           .filter(ws_number=ws_number).exclude(fio_doer='не распределено')
-                           .exclude(Q(decision_time__lte=datetime.datetime.strptime(today, '%d.%m.%Y')) &
-                                    Q(st_status='принято'))
-                           .exclude(Q(decision_time__lte=datetime.datetime.strptime(today, '%d.%m.%Y')) &
-                                    Q(st_status='брак'))
-                           .exclude(Q(decision_time__lte=datetime.datetime.strptime(today, '%d.%m.%Y')) &
-                                    Q(st_status='не принято'))
-                           .order_by("st_status"))
-```
 -[ ] В скрипте worker.html на вызов диспетчера и мастера необходимо добавить if (st_id != "0") или можно вызывать независимо от СЗ?
 -[ ] убрать лишнее 
 ```python
             elif 'запланировано' in request.POST['task_id']:
                 alert_message = 'СЗ принято в работу.'
 ```
--[ ] `elif st_number == '0':` переместить до вызова функции с обращением к БД. Для чего пункт выберите сменно задание в select
+-[ ] `elif st_number == '0':` переместить до вызова функции с обращением к БД. Для чего пункт выберите сменное задание в select
+-[ ] переписать на dict
+```python
+        if request.GET.get('call') == 'True':
+            alert_message = 'Вызов мастеру отправлен.'
+        elif request.GET.get('call') == 'False_wrong':
+            alert_message = 'Неверный выбор.'
+        elif request.GET.get('call') == 'False':
+            alert_message = 'Сменное задание не принято в работу или вызов мастеру был отправлен ранее.'
+        elif request.GET.get('call') == 'True_disp':
+            alert_message = 'Сообщение диспетчеру отправлено.'
+        else:
+            alert_message = ''
+```
+```python
+        call_messages = {
+            'True': 'Вызов мастеру отправлен.',
+            'False': 'Сменное задание не принято в работу или вызов мастеру был отправлен ранее.',
+            'False_wrong': 'Неверный выбор.',
+            'True_disp': 'Сообщение диспетчеру отправлено.',
+        }
+        alert_message = call_messages.get(request.GET.get('call'), '')
+```
+-[ ] аналогично 
+```python
+            if 'брак' in request.POST['task_id']:
+                alert_message = 'Это СЗ уже принято как БРАК. Необходимо перепланирование.'
+            elif 'принято' in request.POST['task_id']:
+                alert_message = 'Сменно задание закрыто.'
+            elif 'ожидание мастера' in request.POST['task_id']:
+                alert_message = 'Мастер УЖЕ вызван.'
+            elif 'ожидание контролёра' in request.POST['task_id']:
+                alert_message = 'Ожидается контролёр.'
+            elif 'в работе' in request.POST['task_id']:
+                alert_message = 'Требуется вызов мастера'
+            elif 'запланировано' in request.POST['task_id']:
+                alert_message = 'СЗ принято в работу.'
+            else:
+                alert_message = 'Все ок'
+```
+на
+```python
+            status_messages = {
+                'брак': 'Это СЗ уже принято как БРАК. Необходимо перепланирование.',
+                'принято': 'Сменно задание закрыто.',
+                'ожидание мастера': 'Мастер УЖЕ вызван.',
+                'ожидание контролёра': 'Ожидается контролёр.',
+                'в работе': 'Требуется вызов мастера',
+                'запланировано': 'СЗ принято в работу.'
+            }
+            status = re.search(r'\w*?--([а-яА-Я\s]*?)--', request.POST['task_id'])[1]
+            print(status)
+            alert_message = status_messages.get(status, 'Все ок')
+```
+-[ ] `if 'запланировано' in request.POST['task_id']:` включает так же "не запланировано", заменить на `if status == 'запланировано':`

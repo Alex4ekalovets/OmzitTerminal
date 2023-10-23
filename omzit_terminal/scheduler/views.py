@@ -13,6 +13,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.db.models import Q
 
+from .filters import ShiftTaskFilter
 from .forms import SchedulerWorkshop, SchedulerWorkplace, FioDoer, QueryDraw
 from .models import WorkshopSchedule, ShiftTask
 
@@ -157,6 +158,7 @@ def td_query(request):
 
 @login_required(login_url="login/")
 def schedulerwp(request):
+    #TODO сортировка
     """
     Планирование графика РЦ
     :param request:
@@ -170,6 +172,8 @@ def schedulerwp(request):
                                                     'ws_number', 'op_number', 'op_name_full', 'norm_tech', 'fio_doer',
                                                     'st_status').all()).exclude(datetime_done=None)
                           .order_by("ws_number", "model_name",))
+
+    f = ShiftTaskFilter(request.GET, queryset=workplace_schedule)
 
     if request.method == 'POST':
         form_workplace_plan = SchedulerWorkplace(request.POST)
@@ -194,11 +198,15 @@ def schedulerwp(request):
                 alert_message = f'Для Т{ws_number} на {datetime_done} нераспределённые задания отсутствуют.'
                 form_workplace_plan = SchedulerWorkplace()
                 context = {'workplace_schedule': workplace_schedule, 'form_workplace_plan': form_workplace_plan,
-                           'alert_message': alert_message}
+                           'alert_message': alert_message, 'filter': f}
                 return render(request, fr"schedulerwp/schedulerwp.html", context=context)
     else:
         form_workplace_plan = SchedulerWorkplace()
-        context = {'workplace_schedule': workplace_schedule, 'form_workplace_plan': form_workplace_plan}
+        context = {
+            'workplace_schedule': workplace_schedule,
+            'form_workplace_plan': form_workplace_plan,
+            'filter': f
+        }
         return render(request, fr"schedulerwp/schedulerwp.html", context=context)
 
 
@@ -213,11 +221,7 @@ def schedulerfio(request, ws_number, datetime_done):
     """
     if str(request.user.username).strip() != "admin" and str(request.user.username[:4]).strip() != "disp":
         raise PermissionDenied
-    def if_not_none(obj):  # функция замены None и НЕТ на пустоту в списке исполнителей
-        if obj is None or obj == '' or obj == 'None':
-            return ''
-        else:
-            return ',' + str(obj)
+
     print(ws_number)
     print(datetime_done)
     formatted_datetime_done = datetime.datetime.strptime(datetime_done, '%Y-%m-%d')
@@ -235,30 +239,39 @@ def schedulerfio(request, ws_number, datetime_done):
     except Exception as e:
         filtered_workplace_schedule = dict()
         print('Ошибка получения filtered_workplace_schedule', e)
+
+    success = 1
+    alert_message = ''
+
     if request.method == 'POST':
         form_fio_doer = FioDoer(request.POST, ws_number=ws_number, datetime_done=formatted_datetime_done)
         if form_fio_doer.is_valid():
-            doers_fios = (str(form_fio_doer.cleaned_data['fio_1']) +
-                          if_not_none(str((form_fio_doer.cleaned_data['fio_2'])).strip()) +
-                          if_not_none(str(form_fio_doer.cleaned_data['fio_3'])).strip() +
-                          if_not_none(str(form_fio_doer.cleaned_data['fio_4'])).strip())
+            fios = list(filter(
+                lambda x: x != 'None',
+                (str(form_fio_doer.cleaned_data[f'fio_{i}']) for i in range(1, 5))
+            ))
+            unique_fios = set(fios)
+            doers_fios = ', '.join(unique_fios)
             print('DOERS-', doers_fios)
-            (ShiftTask.objects.filter(pk=form_fio_doer.cleaned_data['st_number'].id).update(
-                fio_doer=doers_fios, datetime_assign_wp=datetime.datetime.now(), st_status='запланировано',
-                datetime_job_start=None, decision_time=None, master_assign_wp_fio=f'{request.user.first_name} '
-                                                                                  f'{request.user.last_name}'))
-            alert_message = f'Успешно распределено!'
-            context = {'filtered_workplace_schedule': filtered_workplace_schedule,
-                       'form_fio_doer': form_fio_doer,
-                       'alert_message': alert_message}
-            return render(request, r"schedulerfio/schedulerfio.html", context=context)
+            if len(fios) == len(unique_fios):
+                (ShiftTask.objects.filter(pk=form_fio_doer.cleaned_data['st_number'].id).update(
+                    fio_doer=doers_fios, datetime_assign_wp=datetime.datetime.now(), st_status='запланировано',
+                    datetime_job_start=None, decision_time=None, master_assign_wp_fio=f'{request.user.first_name} '
+                                                                                      f'{request.user.last_name}'))
+                alert_message = f'Успешно распределено!'
+            else:
+                alert_message = f'Исполнители дублируются'
+                success = 0
     else:
-        alert_message = ''
         form_fio_doer = FioDoer(ws_number=ws_number, datetime_done=formatted_datetime_done)
-        context = {'filtered_workplace_schedule': filtered_workplace_schedule,
-                   'form_fio_doer': form_fio_doer,
-                   'alert_message': alert_message}
-        return render(request, r"schedulerfio/schedulerfio.html", context=context)
+
+    context = {
+        'filtered_workplace_schedule': filtered_workplace_schedule,
+        'form_fio_doer': form_fio_doer,
+        'alert_message': alert_message,
+        'success': success
+    }
+    return render(request, r"schedulerfio/schedulerfio.html", context=context)
 
 
 # авторизация пользователей
