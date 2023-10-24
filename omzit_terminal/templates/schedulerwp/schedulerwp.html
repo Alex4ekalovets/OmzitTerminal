@@ -39,7 +39,7 @@
         {% if workplace_schedule %}
         <p class="alert">{{ alert_message }}</p>
     <form method="get" id="form2">
-        <p><input type="button" onclick="window.location.href = '{% url 'schedulerwp' %}';" value="Сбросить фильтр"/></p>
+        <p><input type="button" onclick="window.location.href = '{{ request.path }}';" value="Сбросить фильтр"/></p>
         <table title="График рабочих центров" class="table">
             <tr class="table_header_row">
                 <td class="td_cell">№СЗ <p>{{ filter.form.id }}</p></td>
