@@ -53,26 +53,28 @@ def tehnolog_wp(request):
             xlsx_file = handle_uploaded_file(f=file, filename=filename,
                                              path=file_save_path)
             print('filename=', filename, 'path=', file_save_path, 'xlsx=', xlsx_file)
-            list_names = get_teh_data_form.cleaned_data['list_names'].split(',')
-            exception_names = get_teh_data_form.cleaned_data['exception_names']
+            list_name = get_teh_data_form.cleaned_data['list_names']
             # вызов сервиса получения данных из xlsx
-            try:
-                tech_data_get(exel_file=xlsx_file, excel_lists=list_names,
-                              exclusion_list=exception_names,
-                              model_order_query=get_teh_data_form.cleaned_data['model_order_query'].model_order_query)
-                alert = 'Загружено успешно!'
-                (WorkshopSchedule.objects.filter(model_order_query=get_teh_data_form.
-                                                 cleaned_data['model_order_query'].model_order_query)
-                 .update(tehnolog_query_td_fio=f'{request.user.first_name} {request.user.last_name}',
-                         td_status="утверждено",
-                         td_tehnolog_done_datetime=datetime.datetime.now()
-                         ))
-                # сообщение в группу
-                success_message = True
-            except Exception as e:
-                print(f'Ошибка загрузки {filename}', e)
-                alert = f'Ошибка загрузки {filename}'
-                success_message = False
+            errors = tech_data_get(exel_file=xlsx_file, excel_list=list_name,
+                          model_order_query=get_teh_data_form.cleaned_data['model_order_query'].model_order_query)
+            if errors:
+                context = {'errors': errors}
+                return render(request, r"tehnolog/tehnolog_errors.html", context=context)
+            alert = 'Загружено успешно!'
+            (WorkshopSchedule.objects.filter(model_order_query=get_teh_data_form.
+                                             cleaned_data['model_order_query'].model_order_query)
+             .update(tehnolog_query_td_fio=f'{request.user.first_name} {request.user.last_name}',
+                     td_status="утверждено",
+                     td_tehnolog_done_datetime=datetime.datetime.now()
+                     ))
+            # сообщение в группу
+            success_message = True
+            # try:
+            #
+            # except Exception as e:
+            #     print(f'Ошибка загрузки {filename}', e)
+            #     alert = f'Ошибка загрузки {filename}'
+            #     success_message = False
             if success_message:
                 success_group_message = (f"Загружен технологический процесс. Заказ-модель: "
                                          f"{get_teh_data_form.cleaned_data['model_order_query'].model_order_query} "
@@ -159,3 +161,4 @@ def new_model_query(request):
         else:
             pass
     return redirect('tehnolog')  # обновление страницы при успехе
+
