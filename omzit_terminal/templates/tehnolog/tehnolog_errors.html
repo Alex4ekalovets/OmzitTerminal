@@ -20,42 +20,58 @@
         {%endif %}
         <h1>Рабочее место планировщика рабочих центров</h1>
         <br />
-        {% for row, value in errors.changed_rows.items %}
-            <p>{{row}}</p>
-            <p>{{value}}</p>
-        {% endfor %}
-        <p>{{errors.deleted_rows}}</p>
-        <p>{{errors.added_rows}}</p>
-        {% if workplace_schedule %}
-        <p class="alert">{{ alert_message }}</p>
-    <form method="get" id="form2">
-        <p><input type="button" onclick="window.location.href = '{{ request.path }}';" value="Сбросить фильтр"/></p>
+        <h1>Изменено</h1>
         <table title="График рабочих центров" class="table">
-            <tr class="table_header_row">
-                <td class="td_cell">№СЗ <p>{{ filter.form.id }}</p></td>
-                <td class="td_cell">Цех <p>{{ filter.form.workshop }}</p></td>
-                <td class="td_cell">Заказ <p>{{ filter.form.order }}</p></td>
-                <td class="td_cell">Изделие <p>{{ filter.form.model_name }}</p></td>
-                <td class="td_cell">Дата готовности <p>{{ filter.form.datetime_done }}</p></td>
-                <td class="td_cell">Номер РЦ <p>{{ filter.form.ws_number }}</p></td>
-                <td class="td_cell">Номер операции <p>{{ filter.form.op_number }}</p></td>
-                <td class="td_cell">Операция <p>{{ filter.form.op_name_full }}</p></td>
-                <td class="td_cell">Норма времени <p>{{ filter.form.norm_tech }}</p></td>
-                <td class="td_cell">Фио исполнителя <p>{{ filter.form.fio_doer }}</p></td>
-                <td class="td_cell">Статус СЗ <p>{{ filter.form.st_status }}</p></td>
-            </tr>
+        {% for row, value in errors.changed_rows.items %}
 
-            {% for line in filter.qs %}
             <tr class="table_row">
-                {% for el in line.values %}
-                <td class="td_cell">{{ el }}</td>
+                <td class="td_cell">{{ row }}</td>
+                <td class="td_cell">{{ value.0.model_name }}</td>
+                <td class="td_cell">{{ value.0.order }}</td>
+                <td class="td_cell">{{ value.0.model_order_query }}</td>
+                <td class="td_cell">{{ value.0.excel_list_name }}</td>
+                <td class="td_cell">{{ value.0.op_number }}</td>
+                <td class="td_cell">{{ value.0.op_name }}</td>
+                <td class="td_cell">{{ value.0.ws_name }}</td>
+                <td class="td_cell">{{ value.0.op_name_full }}</td>
+                <td class="td_cell">{{ value.0.ws_number }}</td>
+                <td class="td_cell">{{ value.0.norm_tech }}</td>
+                <td class="td_cell">{{ value.0.draw_filename }}</td>
+            </tr>
+        {% endfor %}
+        </table>
+        <h1>Удалено</h1>
+        <table title="График рабочих центров" class="table">
+            {% for row, value in errors.deleted_rows.items %}
+            <tr class="table_row">
+                <td class="td_cell">{{ row }}</td>
+                <td class="td_cell">{{ value.model_name }}</td>
+                <td class="td_cell">{{ value.order }}</td>
+                <td class="td_cell">{{ value.model_order_query }}</td>
+                <td class="td_cell">{{ value.excel_list_name }}</td>
+                <td class="td_cell">{{ value.op_number }}</td>
+                <td class="td_cell">{{ value.op_name }}</td>
+                <td class="td_cell">{{ value.ws_name }}</td>
+                <td class="td_cell">{{ value.op_name_full }}</td>
+                <td class="td_cell">{{ value.ws_number }}</td>
+                <td class="td_cell">{{ value.norm_tech }}</td>
+                <td class="td_cell">{{ value.draw_filename }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h1>Добавлено</h1>
+        <table title="График рабочих центров" class="table">
+            {% for row, values in errors.added_rows.items %}
+            <tr class="table_row">
+                <td class="td_cell">{{ row }}</td>
+                {% for key, value in values.items %}
+                <td class="td_cell">{{ value }}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
         </table>
 
-    </form>
-        {% endif %}
         <!-- prettier-ignore -->
         {% if user.username == 'admin' %}
         <a href="{% url 'home' %}">Назад</a> <br />

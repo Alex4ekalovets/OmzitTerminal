@@ -1,7 +1,21 @@
 import os
 from aiogram import Bot, Dispatcher
 from dotenv import load_dotenv
-dotenv_path = 'D:\Projects\OmzitTerminal\.env'
+
+from omzit_terminal.settings import BASE_DIR
+
+dotenv_path = os.path.abspath(__file__)
+
+while True:
+    dotenv_path = os.path.dirname(dotenv_path)
+    if '.env' in os.listdir(dotenv_path):
+        dotenv_path = os.path.join(dotenv_path, '.env')
+        print(dotenv_path)
+        break
+    elif dotenv_path == os.path.dirname(BASE_DIR):
+        break
+
+
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
 
