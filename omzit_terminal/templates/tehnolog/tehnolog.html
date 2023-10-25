@@ -22,10 +22,21 @@
                 setTimeout(() => (notification.style.opacity = 0), 10000);
                 //setTimeout(() => notification.remove(), 10000);
             }
+        </script>
+        {% if 'Ошибка' in alert %}
+        <script>
+            showNotification({
+                html: "<p class='alert_gone' style='color:red';> {{ alert }} </p>",
+            });
+        </script>
+        {% else %}
+        <script>
             showNotification({
                 html: "<p class='alert_gone'> {{ alert }} </p>",
             });
         </script>
+        {% endif %}
+
 
         <div class="form_div" id="correction_form">
             <h3>Форма корректировки заказ-модель</h3>
@@ -116,6 +127,27 @@
             {% endif %}
         </div>
         <br />
+        <br />
+            <div class="form_div">
+                <h3>Форма загрузки КД</h3>
+
+                <form class="form_form" action="{% url 'tehnolog' %}" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="td_query_block">
+                        <div class="form_inner_label">{{ draw_files_upload_form.model_order_query.label }}</div>
+                        <div class="form_inner_div">{{ draw_files_upload_form.model_order_query }}</div>
+                        <br />
+                        <div class="form_inner_label">{{ draw_files_upload_form.draw_files.label }}</div>
+                        <div class="form_inner_div">{{ draw_files_upload_form.draw_files }}</div>
+
+                        <div>
+                            <button type="submit" class="form_button">
+                                <p class="red_word">Загрузить чертежи</p>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         <!-- prettier-ignore -->
         {% if user.username == 'admin' %}
         <a href="{% url 'home' %}">Назад</a> <br />

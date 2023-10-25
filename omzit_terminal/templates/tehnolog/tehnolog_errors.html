@@ -3,7 +3,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <title>Рабочее место планировщика рабочих центров</title>
+        <title>Изменения в загружаемых технологических данных</title>
         <link type="text/css" href="{% static 'scheduler/css/scheduler.css' %}" rel="stylesheet" />
     </head>
 
@@ -18,30 +18,106 @@
         {% if user.username == 'admin' %}
         <a href="{% url 'home' %}">Назад</a> <br />
         {%endif %}
-        <h1>Рабочее место планировщика рабочих центров</h1>
+        <h1>Изменения в загружаемых технологических данных</h1>
         <br />
-        <h1>Изменено</h1>
-        <table title="График рабочих центров" class="table">
-        {% for row, value in errors.changed_rows.items %}
 
+        {% if errors.changed_rows|length != 0 %}
+                <h1>Изменено</h1>
+        <table title="График рабочих центров" class="table">
+            <tr class="table_row">
+                <td class="td_cell">Строка excel файла</td>
+                <td class="td_cell">Модель</td>
+                <td class="td_cell">Заказ</td>
+                <td class="td_cell">Модель_заказ</td>
+                <td class="td_cell">Лист excel файла</td>
+                <td class="td_cell">Номер операции</td>
+                <td class="td_cell">Наименование работ</td>
+                <td class="td_cell">Оборудование</td>
+            </tr>
+        {% for row, value in errors.changed_rows.items %}
             <tr class="table_row">
                 <td class="td_cell">{{ row }}</td>
+                {% if value.0.model_name != value.1.model_name %}
+                <td class="td_cell">
+                    <p style="color:red;"><s>{{ value.0.model_name }}</s></p>
+                    <p style="color:green;">{{ value.1.model_name }}</p>
+                </td>
+                {% else %}
                 <td class="td_cell">{{ value.0.model_name }}</td>
+                {% endif %}
+
+                {% if value.0.order != value.1.order %}
+                <td class="td_cell">
+                    <p style="color:red;"><s>{{ value.0.order }}</s></p>
+                    <p style="color:green;">{{ value.1.order }}</p>
+                </td>
+                {% else %}
                 <td class="td_cell">{{ value.0.order }}</td>
-                <td class="td_cell">{{ value.0.model_order_query }}</td>
+                {% endif %}
+
+                {% if value.0.model_order_query != value.1.model_order_query %}
+                <td class="td_cell">
+                    <p style="color:red;"><s>{{ value.0.model_order_query }}</s></p>
+                    <p style="color:green;">{{ value.1.model_order_query }}</p>
+                </td>
+                {% else %}
+                 <td class="td_cell">{{ value.0.model_order_query }}</td>
+                {% endif %}
+
+                {% if value.0.excel_list_name != value.1.excel_list_name %}
+                <td class="td_cell">
+                    <p style="color:red;"><s>{{ value.0.excel_list_name }}</s></p>
+                    <p style="color:green;">{{ value.1.excel_list_name }}</p>
+                </td>
+                {% else %}
                 <td class="td_cell">{{ value.0.excel_list_name }}</td>
+                {% endif %}
+
+                {% if value.0.op_number != value.1.op_number %}
+                <td class="td_cell">
+                    <p style="color:red;"><s>{{ value.0.op_number }}</s></p>
+                    <p style="color:green;">{{ value.1.op_number }}</p>
+                </td>
+                {% else %}
                 <td class="td_cell">{{ value.0.op_number }}</td>
+                {% endif %}
+
+                {% if value.0.op_name != value.1.op_name %}
+                <td class="td_cell">
+                    <p style="color:red;"><s>{{ value.0.op_name }}</s></p>
+                    <p style="color:green;">{{ value.1.op_name }}</p>
+                </td>
+                {% else %}
                 <td class="td_cell">{{ value.0.op_name }}</td>
+                {% endif %}
+
+                {% if value.0.ws_name != value.1.ws_name %}
+                <td class="td_cell">
+                    <p style="color:red;"><s>{{ value.0.ws_name }}</s></p>
+                    <p style="color:green;">{{ value.1.ws_name }}</p>
+                </td>
+                {% else %}
                 <td class="td_cell">{{ value.0.ws_name }}</td>
-                <td class="td_cell">{{ value.0.op_name_full }}</td>
-                <td class="td_cell">{{ value.0.ws_number }}</td>
-                <td class="td_cell">{{ value.0.norm_tech }}</td>
-                <td class="td_cell">{{ value.0.draw_filename }}</td>
+                {% endif %}
             </tr>
+
         {% endfor %}
         </table>
+        {% endif %}
+
+        {% if errors.deleted_rows|length != 0 %}
         <h1>Удалено</h1>
         <table title="График рабочих центров" class="table">
+            <tr class="table_row">
+                <td class="td_cell">Строка excel файла</td>
+                <td class="td_cell">Модель</td>
+                <td class="td_cell">Заказ</td>
+                <td class="td_cell">Модель_заказ</td>
+                <td class="td_cell">Лист excel файла</td>
+                <td class="td_cell">Номер операции</td>
+                <td class="td_cell">Наименование работ</td>
+                <td class="td_cell">Оборудование</td>
+            </tr>
             {% for row, value in errors.deleted_rows.items %}
             <tr class="table_row">
                 <td class="td_cell">{{ row }}</td>
@@ -53,24 +129,40 @@
                 <td class="td_cell">{{ value.op_name }}</td>
                 <td class="td_cell">{{ value.ws_name }}</td>
                 <td class="td_cell">{{ value.op_name_full }}</td>
-                <td class="td_cell">{{ value.ws_number }}</td>
-                <td class="td_cell">{{ value.norm_tech }}</td>
-                <td class="td_cell">{{ value.draw_filename }}</td>
             </tr>
             {% endfor %}
         </table>
+        {% endif %}
 
+
+        {% if errors.added_rows|length != 0 %}
         <h1>Добавлено</h1>
         <table title="График рабочих центров" class="table">
-            {% for row, values in errors.added_rows.items %}
+            <tr class="table_row">
+                <td class="td_cell">Строка excel файла</td>
+                <td class="td_cell">Модель</td>
+                <td class="td_cell">Заказ</td>
+                <td class="td_cell">Модель_заказ</td>
+                <td class="td_cell">Лист excel файла</td>
+                <td class="td_cell">Номер операции</td>
+                <td class="td_cell">Наименование работ</td>
+                <td class="td_cell">Оборудование</td>
+            </tr>
+            {% for row, value in errors.added_rows.items %}
             <tr class="table_row">
                 <td class="td_cell">{{ row }}</td>
-                {% for key, value in values.items %}
-                <td class="td_cell">{{ value }}</td>
-                {% endfor %}
+                <td class="td_cell">{{ value.model_name }}</td>
+                <td class="td_cell">{{ value.order }}</td>
+                <td class="td_cell">{{ value.model_order_query }}</td>
+                <td class="td_cell">{{ value.excel_list_name }}</td>
+                <td class="td_cell">{{ value.op_number }}</td>
+                <td class="td_cell">{{ value.op_name }}</td>
+                <td class="td_cell">{{ value.ws_name }}</td>
             </tr>
             {% endfor %}
         </table>
+        {% endif %}
+
 
         <!-- prettier-ignore -->
         {% if user.username == 'admin' %}
