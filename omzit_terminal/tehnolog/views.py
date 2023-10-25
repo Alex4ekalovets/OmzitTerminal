@@ -28,13 +28,17 @@ def tehnolog_wp(request):
     td_queries = (WorkshopSchedule.objects.values('model_order_query', 'query_prior', 'td_status')
                   .exclude(td_status='завершено'))
     change_model_query_form = ChangeOrderModel()
-    draw_files_upload_form = QueryAnswer()
     send_draw_back_form = SendDrawBack()
     alert = ''
     print(request.user.username[:8], 'tehnolog')
     # if str(request.user.username).strip() != "admin" and str(request.user.username[:8]).strip() != "tehnolog":
     #     raise PermissionDenied
-
+    context = {}
+    context.update(upload_draws(
+        request=request,
+        draws_path='/Users/MacAlex/WorkFolder/Python/Projects/omzit_terminal/draws',
+        group_id=group_id
+    ))
     if request.method == 'POST':
         get_teh_data_form = GetTehDataForm(request.POST, request.FILES)  # класс форм с частично заполненными данными
         if get_teh_data_form.is_valid():
@@ -46,11 +50,15 @@ def tehnolog_wp(request):
             # обработка выбора не excel файла
             if file_extension != '.xlsx':
                 get_teh_data_form.add_error(None, 'Файл должен быть .xlsx!')
-                context = {'get_teh_data_form': get_teh_data_form, 'td_queries': td_queries, 'alert': alert,
-                           'change_model_query_form': change_model_query_form,
-                           'send_draw_back_form': send_draw_back_form,
-                           'draw_files_upload_form': draw_files_upload_form
-                           }
+                context.update(
+                    {
+                        'get_teh_data_form': get_teh_data_form,
+                        'td_queries': td_queries,
+                        'alert': alert,
+                        'change_model_query_form': change_model_query_form,
+                        'send_draw_back_form': send_draw_back_form,
+                    }
+                )
                 return render(request, r"tehnolog/tehnolog.html", context=context)
             file_save_path = os.path.join(os.getcwd(), 'xlsx')
             os.makedirs(file_save_path, exist_ok=True)
@@ -94,12 +102,78 @@ def tehnolog_wp(request):
             print(get_teh_data_form.cleaned_data)
     else:
         get_teh_data_form = GetTehDataForm()  # чистая форма для первого запуска
-    context = {'get_teh_data_form': get_teh_data_form, 'td_queries': td_queries, 'alert': alert,
-               'change_model_query_form': change_model_query_form,
-               'send_draw_back_form': send_draw_back_form,
-               'draw_files_upload_form': draw_files_upload_form
-               }
+    context.update(
+        {
+         'get_teh_data_form': get_teh_data_form,
+         'td_queries': td_queries,
+         'alert': alert,
+         'change_model_query_form': change_model_query_form,
+         'send_draw_back_form': send_draw_back_form,
+        }
+    )
+    print(context)
     return render(request, r"tehnolog/tehnolog.html", context=context)
+
+
+def upload_draws(request, draws_path, group_id):
+    alert = ''
+    if request.method == 'POST':
+        draw_files_upload_form = QueryAnswer(request.POST, request.FILES)
+        if draw_files_upload_form.is_valid():
+            files = dict(request.FILES)["draw_files"]
+            model_order_query = draw_files_upload_form.cleaned_data['model_order_query'].model_order_query
+            file_save_path = os.path.join(draws_path, model_order_query)
+
+            if not os.path.exists(file_save_path):
+                os.makedirs(file_save_path)
+
+            not_uploaded_files = []
+            for file in files:
+                # обработчик загрузки файла
+                is_uploaded, _ = handle_uploaded_file(
+                                            f=file,
+                                            filename=file.name,
+                                            path=file_save_path
+                                        )
+                if not is_uploaded:
+                    not_uploaded_files.append(file.name)
+
+                # обновление данных в БД
+                WorkshopSchedule.objects.filter(
+                    model_order_query=model_order_query
+                ).update(
+                    td_status='передано',  # статус СЗ
+                    td_tehnolog_done_datetime=datetime.datetime.now(),  # время загрузки
+                    tehnolog_query_td_fio=f'{request.user.first_name} {request.user.last_name}',  # ФИО констр
+                    td_remarks=''
+                )
+
+            success_message = len(not_uploaded_files) != len(files)
+            if success_message:
+                uploaded = len(files) - len(not_uploaded_files)
+                if len(not_uploaded_files) == 0:
+                    alert = 'Все файлы успешно загружены.'
+                else:
+                    alert = (f'Загружено {uploaded} из {len(files)}.\n'
+                             f'Не удалось загрузить файлы {", ".join(not_uploaded_files)}')
+                success_group_message = (f"Передано КД. Заказ-модель "
+                                         f"{model_order_query}. "
+                                         f"Открыт доступ в папке сервера: file://svr-003/draws/"
+                                         f"{model_order_query}/. "
+                                         f"Передал КД: {request.user.first_name} {request.user.last_name}. "
+                                         f"Загружено файлов: {uploaded}.")
+                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+                print(success_group_message, group_id)
+            else:
+                alert = f'Ошибка при загрузке файлов!'
+        else:
+            print('INVALID FORM!')
+            alert = 'Ошибка! Форма не валидна!'
+    else:
+        draw_files_upload_form = QueryAnswer()
+
+    context = {'draw_files_upload_form': draw_files_upload_form, 'upload_alert': alert}
+    return context
 
 
 @login_required(login_url="../scheduler/login/")
