@@ -57,6 +57,8 @@ def tech_data_get(model_order_query: str, exel_file: str, excel_list: str):
                 tasks.append(task)
             except ShiftTask.DoesNotExist:
                 is_uploaded = False
+        else:
+            ShiftTask.objects.bulk_update(tasks, allowed_fields)
     return is_uploaded
 
 
