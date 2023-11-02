@@ -1,5 +1,9 @@
 import datetime
 import sqlite3
+
+from omzit_terminal.celery import return_in_work_status
+
+
 # import psycopg2
 # from .db_config import host, dbname, user, password  # TODO перенести в env весь файл db_config
 
@@ -15,7 +19,7 @@ def select_master_call(ws_number: str, st_number) -> list or None:
     messages_to_master = []  # список сообщений для мастера
     try:
         # подключение к БД
-        con = sqlite3.connect('D:\Projects\OmzitTerminal\omzit_terminal\db.sqlite3')
+        con = sqlite3.connect('/Users/MacAlex/WorkFolder/Python/Projects/omzit_terminal/omzit_terminal/db.sqlite3')
         # con = psycopg2.connect(dbname=dbname, user=user, password=password, host=host)
         # con.autocommit = True
         # запрос на все статусы ожидания мастера
@@ -48,6 +52,9 @@ def select_master_call(ws_number: str, st_number) -> list or None:
                     cur = con.cursor()
                     cur.execute(update_query)
                     con.commit()
+                    print('Вызов сельдерея', st_number)
+                    return_in_work_status.apply_async(args=(st_number,), countdown=30)
+                    print('Окончание вызова сельдерея')
             except Exception as e:
                 print(e, 'ошибка обновления')
     except Exception as e:
