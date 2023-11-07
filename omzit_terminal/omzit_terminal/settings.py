@@ -78,24 +78,24 @@ TEMPLATES = [
 WSGI_APPLICATION = 'omzit_terminal.wsgi.application'
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'terminal',
-#         'USER': 'admin',
-#         'PASSWORD': 'Epass1',
-#         'HOST': 'localhost',
-#         # 'HOST': '192.168.8.163'
-#         # 'HOST': '192.168.8.30'
-#         'PORT': '',
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres',
+        'PASSWORD': 'Valm0nts89',
+        'HOST': 'localhost',
+        # 'HOST': '192.168.8.163'
+        # 'HOST': '192.168.8.30'
+        'PORT': '',
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

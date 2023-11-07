@@ -40,6 +40,11 @@ def tehnolog_wp(request):
         draws_path=os.path.join('D:/', 'Projects', 'OmzitTerminal', 'draws'),
         group_id=group_id
     ))
+
+    context.update(new_model_query(
+        request=request,
+        context=context
+    ))
     if request.method == 'POST' and context['upload_alert'] == '':
         get_teh_data_form = GetTehDataForm(request.POST, request.FILES)  # класс форм с частично заполненными данными
         if get_teh_data_form.is_valid():
@@ -281,14 +286,14 @@ def send_draw_back(request):
 
 
 @login_required(login_url="../scheduler/login/")
-def new_model_query(request):
+def new_model_query(request, context):
     """
     Корректировка заказ-модели
     :param request:
     :return:
     """
     group_id = -908012934  # тг группа
-    if request.method == 'POST':
+    if request.method == 'POST' and context.get('alert') is not None:
         change_model_query_form = ChangeOrderModel(request.POST)
         if change_model_query_form.is_valid():
             # модель_заказ
@@ -297,24 +302,31 @@ def new_model_query(request):
             new_order = change_model_query_form.cleaned_data['order_query'].strip()
             new_model = change_model_query_form.cleaned_data['model_query'].strip()
             new_model_order_query = f"{new_order}_{new_model}"
-            (WorkshopSchedule.objects.filter(model_order_query=old_model_order_query)
-             .update(order=new_order,
-                     model_name=new_model,
-                     model_order_query=new_model_order_query))
 
             # переименование папки
             old_folder = os.path.join("C:/", "draws", old_model_order_query)
             new_folder = os.path.join("C:/", "draws", new_model_order_query)
-            os.rename(old_folder, new_folder)
+            try:
+                raise Exception
+                os.rename(old_folder, new_folder)
 
-            # сообщение в группу
-            success_group_message = (f"Заказ-модель переименован технологической службой в: "
-                                     f"{new_model_order_query}. "
-                                     f"Откорректировал: {request.user.first_name} {request.user.last_name}."
-                                     )
-            # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
-            print(success_group_message, group_id)
+                (WorkshopSchedule.objects.filter(model_order_query=old_model_order_query)
+                 .update(order=new_order,
+                         model_name=new_model,
+                         model_order_query=new_model_order_query))
+
+                # сообщение в группу
+                success_group_message = (f"Заказ-модель переименован технологической службой в: "
+                                         f"{new_model_order_query}. "
+                                         f"Откорректировал: {request.user.first_name} {request.user.last_name}."
+                                         )
+                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+                print(success_group_message, group_id)
+                alert = f"Модель/заказ переименованы успешно!"
+            except Exception as e:
+                print(f"При переименовании папки {old_folder} в {new_folder} вызвано исключение: {e}!")
+                alert = f"Ошибка при переименовании модели/заказа"
         else:
             pass
-    return redirect('tehnolog')  # обновление страницы при успехе
+    return {'alert': alert}  # обновление страницы при успехе
 

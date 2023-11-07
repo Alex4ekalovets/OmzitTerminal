@@ -100,7 +100,7 @@ def worker(request, ws_number):
             index = request.POST['task_id'].find('--')
             task_id = request.POST['task_id'][:index]
             # статус в работе
-            if status == 'запланировано':  # если статус запланировано установка статуса в работе
+            if status == 'запланировано' or status == 'пауза':  # если статус запланировано установка статуса в работе
                 # if 'ожидание мастера' not in request.POST['task_id']:  # если нет статуса ожидания мастера
                 print('task_id: ', task_id)
                 # обновление данных
