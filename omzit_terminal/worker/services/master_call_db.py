@@ -41,7 +41,7 @@ def select_master_call(ws_number: str, st_number) -> list or None:
         # запрос на все статусы ожидания мастера
         select_query = f"""SELECT id, model_name, "order", op_number, op_name_full, fio_doer
                         FROM shift_task
-                        WHERE st_status='в работе' AND
+                        WHERE st_status in ('в работе', 'пауза') AND
                         id = '{st_number}'               
                         """
         try:

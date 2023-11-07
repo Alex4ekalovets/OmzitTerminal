@@ -1,15 +1,20 @@
 import datetime
+import json
+import os.path
 import re
 import time
-import asyncio
 import socket
+
+import asyncio
 from django.http import FileResponse
 from django.http import HttpResponse
 from django.shortcuts import redirect
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied
+from django.utils import timezone
 
+from omzit_terminal.settings import BASE_DIR
 from scheduler.models import ShiftTask
 
 from .forms import WorkplaceChoose
@@ -76,7 +81,7 @@ def worker(request, ws_number):
     select_shift_task = ((ShiftTask.objects.values('id', 'ws_number', 'model_name', 'order', 'op_number',
                                                    'op_name_full', 'norm_tech', 'fio_doer', 'st_status',
                                                    'datetime_job_start', 'decision_time')
-                         .filter(ws_number=ws_number)).exclude(fio_doer='не распределено')
+                          .filter(ws_number=ws_number)).exclude(fio_doer='не распределено')
                          .exclude(st_status='брак')
                          .exclude(st_status='не принято')
                          .exclude(st_status='принято')
@@ -100,7 +105,7 @@ def worker(request, ws_number):
             index = request.POST['task_id'].find('--')
             task_id = request.POST['task_id'][:index]
             # статус в работе
-            if status == 'запланировано' or status == 'пауза':  # если статус запланировано установка статуса в работе
+            if status == 'запланировано':  # если статус запланировано установка статуса в работе
                 # if 'ожидание мастера' not in request.POST['task_id']:  # если нет статуса ожидания мастера
                 print('task_id: ', task_id)
                 # обновление данных
@@ -109,8 +114,10 @@ def worker(request, ws_number):
                                                                 datetime_job_start=datetime.datetime.now())
                     alert_message = 'Сменное задание запущенно в работу.'
                     # return redirect(f'/worker/{ws_number}', context={'alert': alert_message})  # обновление страницы
-                # else:
-                #     print("Мастер уже вызван!")
+                    # else:
+                    #     print("Мастер уже вызван!")
+            elif 'пауза' in request.POST['task_id']:
+                resume_work(task_id=task_id)
             else:
                 print("Это СЗ уже взято в работу!")
         else:
@@ -239,3 +246,95 @@ def make_dispatcher_call(request, ws_st_number):
     #     print('NO MESSAGE!')
     #     return redirect(f'/worker/{ws_number}')
 
+
+def pause_work(task_id=None, is_lunch=False):
+    """
+    Постановка СЗ на паузу
+    Если task_id (номер СЗ) не указан, то приостанавливаются все СЗ со статусом в 'в работе'
+    """
+    stopped_shift_tasks = []
+    shift_tasks = ShiftTask.objects.filter(st_status='в работе')
+    if task_id:  # если выбрано конкретное СЗ для остановки
+        shift_tasks = shift_tasks.filter(pk=task_id)
+    for st in shift_tasks:
+        # если указан обед, то добавляем все СЗ со статусом "в работе" в список для записи в json
+        if is_lunch and not task_id:
+            stopped_shift_tasks.append(st.pk)
+        message_to_master = (f"Приостановлена работа на Т{st.workshop}. Номер СЗ: {st.id}. "
+                             f"Заказ: {st.order}. Изделие: {st.model_name}. "
+                             f"Операция: {st.op_number} {st.op_name_full}. "
+                             f"Исполнители: {st.fio_doer}")
+        try:
+            asyncio.run(send_call_master(message_to_master))
+        except Exception as ex:
+            print(f"При попытке отправки сообщения мастеру из функции 'pause_work' вызвано исключение: {ex}")
+    shift_tasks.update(st_status='пауза')
+
+    if is_lunch:  # если автоматическая пауза в обеденное время
+
+        # открываем существующий json или создаем новый со списком остановленных СЗ под ключом "lunch_stop"
+        json_path = os.path.join(BASE_DIR, "storage.json")
+        try:
+            if os.path.exists(json_path):
+                with open(json_path, "r") as file:
+                    data = json.load(file)
+                print(f"Файл storage.json чтение {data}")
+                data["lunch_stop"] = stopped_shift_tasks
+                with open(json_path, "w") as file:
+                    json.dump(data, file)
+                print(f"Файл storage.json запись {data}")
+            else:
+                raise Exception("Файл storage.json не найден!")
+        except Exception as ex:
+            print(f"Ошибка при чтении storage.json: {ex}")
+            with open(json_path, "w") as file:
+                data = {
+                    "lunch_stop": stopped_shift_tasks
+                }
+                json.dump(data, file)
+            print(f"Новый файл storage.json {data}")
+
+
+def resume_work(task_id=None, is_lunch=False):
+    """
+    Возобновление работы по СЗ
+    Если task_id (номер СЗ) не указан, то возобновляются все СЗ со статусом в 'пауза', остановленные в обед
+    """
+    shift_tasks = []
+    if task_id:  # если выбрано конкретное СЗ для возобновления
+        shift_tasks = ShiftTask.objects.filter(st_status='пауза', pk=task_id)
+    elif is_lunch:  # если возобновляем СЗ после обеда
+
+        # открываем json, читаем список остановленных на время обеда СЗ
+        json_path = os.path.join(BASE_DIR, "storage.json")
+        try:
+            if os.path.exists(json_path):
+                with open(json_path, "r") as file:
+                    data = json.load(file)
+                print(f"Файл storage.json чтение {data}")
+                stopped_shift_tasks = data.get("lunch_stop")
+                data["lunch_stop"] = []
+                with open(json_path, "w") as file:
+                    json.dump(data, file)
+                print(f"Файл storage.json запись {data}")
+            else:
+                raise Exception("Файл storage.json не найден!")
+        except Exception as ex:
+            print(f"Ошибка при чтении storage.json: {ex}")
+            stopped_shift_tasks = None
+
+        if stopped_shift_tasks:
+            shift_tasks = ShiftTask.objects.filter(st_status='пауза', pk__in=stopped_shift_tasks)
+    else:
+        print('Непредусмотренный случай возобновления работы!')
+    for st in shift_tasks:
+        message_to_master = (f"Возобновлена работа на Т{st.workshop}. Номер СЗ: {st.id}. "
+                             f"Заказ: {st.order}. Изделие: {st.model_name}. "
+                             f"Операция: {st.op_number} {st.op_name_full}. "
+                             f"Исполнители: {st.fio_doer}")
+        try:
+            asyncio.run(send_call_master(message_to_master))
+        except Exception as ex:
+            print(f"При попытке отправки сообщения мастеру из функции 'resume_work' вызвано исключение: {ex}")
+    if isinstance(shift_tasks, QuerySet):
+        shift_tasks.update(st_status='в работе')
