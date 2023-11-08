@@ -292,6 +292,7 @@ def new_model_query(request, context):
     :param request:
     :return:
     """
+    alert = ''
     group_id = -908012934  # тг группа
     if request.method == 'POST' and context.get('alert') is not None:
         change_model_query_form = ChangeOrderModel(request.POST)
@@ -307,7 +308,6 @@ def new_model_query(request, context):
             old_folder = os.path.join("C:/", "draws", old_model_order_query)
             new_folder = os.path.join("C:/", "draws", new_model_order_query)
             try:
-                raise Exception
                 os.rename(old_folder, new_folder)
 
                 (WorkshopSchedule.objects.filter(model_order_query=old_model_order_query)

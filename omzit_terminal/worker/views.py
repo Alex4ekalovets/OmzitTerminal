@@ -70,7 +70,7 @@ def worker(request, ws_number):
     initial_shift_tasks = (ShiftTask.objects.values('id', 'ws_number', 'model_name', 'order', 'op_number',
                                                     'op_name_full', 'norm_tech', 'fio_doer', 'st_status',
                                                     'datetime_job_start', 'decision_time')
-                           .filter(ws_number=ws_number).exclude(fio_doer='не распределено')
+                           .filter(ws_number=ws_number, next_shift_task=None).exclude(fio_doer='не распределено')
                            .exclude(Q(decision_time__lte=datetime.datetime.strptime(today, '%d.%m.%Y')) &
                                     Q(st_status='принято'))
                            .exclude(Q(decision_time__lte=datetime.datetime.strptime(today, '%d.%m.%Y')) &
@@ -260,7 +260,7 @@ def pause_work(task_id=None, is_lunch=False):
         # если указан обед, то добавляем все СЗ со статусом "в работе" в список для записи в json
         if is_lunch and not task_id:
             stopped_shift_tasks.append(st.pk)
-        message_to_master = (f"Приостановлена работа на Т{st.workshop}. Номер СЗ: {st.id}. "
+        message_to_master = (f"Приостановлена работа на Т{st.ws_number}. Номер СЗ: {st.id}. "
                              f"Заказ: {st.order}. Изделие: {st.model_name}. "
                              f"Операция: {st.op_number} {st.op_name_full}. "
                              f"Исполнители: {st.fio_doer}")
@@ -328,7 +328,7 @@ def resume_work(task_id=None, is_lunch=False):
     else:
         print('Непредусмотренный случай возобновления работы!')
     for st in shift_tasks:
-        message_to_master = (f"Возобновлена работа на Т{st.workshop}. Номер СЗ: {st.id}. "
+        message_to_master = (f"Возобновлена работа на Т{st.ws_number}. Номер СЗ: {st.id}. "
                              f"Заказ: {st.order}. Изделие: {st.model_name}. "
                              f"Операция: {st.op_number} {st.op_name_full}. "
                              f"Исполнители: {st.fio_doer}")
