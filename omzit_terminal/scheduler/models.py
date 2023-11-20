@@ -152,6 +152,7 @@ class ShiftTask(models.Model):
         verbose_name_plural = 'Сменные задания'
 
     def save(self, *args, **kwargs):
+        print("save")
         self.calc_job_duration()
         super().save(*args, **kwargs)
 
@@ -159,24 +160,28 @@ class ShiftTask(models.Model):
         """
         Вычисляет длительность работы по изменению статусов
         """
-        if self.pk and self.st_status in ("пауза", "принято", "брак"):
+        if self.pk:
             current_st_status = ShiftTask.objects.get(pk=self.pk).st_status
-            if current_st_status in ("в работе", "ожидание мастера", "ожидание контролёра"):
+            print(self.pk, current_st_status, self.st_status)
+            if self.st_status in ("пауза", "принято", "брак"):
+                if current_st_status in ("в работе", "ожидание мастера", "ожидание контролёра"):
 
-                if not self.job_duration:
-                    self.job_duration = datetime.timedelta(0)
+                    if not self.job_duration:
+                        self.job_duration = datetime.timedelta(0)
 
-                if self.datetime_job_resume:
-                    #  если остановка работы не первая
-                    #  добавляем длительность со времени возобновления работы
-                    self.job_duration += timezone.now() - self.datetime_job_resume
-                else:
-                    #  если первая остановка работы
-                    #  добавляем длительность со времени начала работы
-                    self.job_duration += timezone.now() - self.datetime_job_start
+                    if self.datetime_job_resume:
+                        #  если остановка работы не первая
+                        #  добавляем длительность со времени возобновления работы
+                        self.job_duration += timezone.now() - self.datetime_job_resume
+                    else:
+                        #  если первая остановка работы
+                        #  добавляем длительность со времени начала работы
+                        self.job_duration += timezone.now() - self.datetime_job_start
 
-        elif self.pk and self.st_status in ("в работе",):
-            # после возобновления работы после паузы устанавливаем текущее время для поля datetime_job_resume
-            current_st_status = ShiftTask.objects.get(pk=self.pk).st_status
-            if current_st_status == "пауза":
-                self.datetime_job_resume = timezone.now()
+            elif self.st_status in ("в работе",):
+                # после возобновления работы после паузы устанавливаем текущее время для поля datetime_job_resume
+                if current_st_status == "пауза":
+                    self.datetime_job_resume = timezone.now()
+            else:
+                print("Else", self.pk, current_st_status, self.st_status)
+

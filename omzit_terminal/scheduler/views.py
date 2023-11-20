@@ -1,6 +1,11 @@
 import asyncio
 import datetime
+import json
 import os
+import shlex
+import subprocess
+import sys
+
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
@@ -12,12 +17,15 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.db.models import Q
 
+from omzit_terminal.settings import BASE_DIR
+
 from .filters import get_filterset
-from .forms import SchedulerWorkshop, SchedulerWorkplace, FioDoer, QueryDraw
+from .forms import SchedulerWorkshop, SchedulerWorkplace, FioDoer, QueryDraw, DrawsUpload
 from .models import WorkshopSchedule, ShiftTask
 
 from .services.schedule_handlers import get_all_done_rate
 from worker.services.master_call_function import terminal_message_to_id
+
 TERMINAL_GROUP_ID = os.getenv('ADMIN_TELEGRAM_ID')
 
 
@@ -337,3 +345,45 @@ def show_workshop_scheme(request):
         return response
     except FileNotFoundError as e:
         print(e)
+
+
+def create_specification(request):
+    alert = ""
+    spec = dict()
+    json_path = BASE_DIR / "specification.json"
+    form = DrawsUpload()
+    if request.method == "POST":
+        form = DrawsUpload(request.POST, request.FILES)
+        if form.is_valid():
+            files = dict(request.FILES)["draw_files"]
+            get_specifications(files)
+            alert = "Выполняется формирование спецификации..."
+        context = {'spec': spec, 'form': form, 'alert': alert}
+        return render(request, r"scheduler/template.html", context=context)
+    else:
+        try:
+            with open(json_path, 'r') as json_file:
+                spec = json.load(json_file)
+        except Exception:
+            print("Ошибка получения файла спецификации")
+        rows = []
+        names = []
+        draws = set()
+        if spec:
+            spec.pop("columns")
+            for key, value in spec.items():
+                for row in value:
+                    row["Чертеж"] = key
+                    draws.add(key)
+                    names.append(row["Наименование"])
+                rows.extend(value)
+    print(draws)
+    context = {'spec': rows, "names": names, "draws": draws, 'form': form, 'alert': alert}
+    return render(request, r"scheduler/template.html", context=context)
+
+
+def get_specifications(files):
+    filenames = ";".join([file.name for file in files])
+    py_file = os.path.join(r"D:\Projects\cdw_dxf_reader\cwd", "read.py")
+    python_dir = r'D:\Projects\cdw_dxf_reader\venv\Scripts\python.exe'
+    subprocess.Popen([python_dir, py_file, f"{filenames}"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

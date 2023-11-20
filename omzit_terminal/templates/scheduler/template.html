@@ -1,0 +1,254 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Рабочее место заявителя</title>
+        <link type="text/css" href="{% static 'scheduler/css/scheduler.css' %}" rel="stylesheet" />
+        <link type="text/css" href="{% static 'tehnolog/css/tehnolog.css' %}" rel="stylesheet" />
+    </head>
+    <body>
+        {% if request.user.is_authenticated %}
+        <div class="legend">
+            <div>
+                <p>Пользователь: {{ user.username }} | <a href="{% url 'logout' %}" class="legend_link"> Выйти </a></p>
+                <p><a href="{% url 'instruction' %}">Инструкция</a> <br /></p>
+                <p>Папка с чертежами: \\SVR-003\draws</p>
+            </div>
+        </div>
+        {% else %} <a href="{% url 'login' %}"> Войти </a>
+        {%endif %}
+        <h1>Рабочее место заявителя</h1>
+        {% if alert %}
+        <script>
+            function showNotification({ top = 0, right = 0, html, class_name }) {
+                let notification = document.createElement("div");
+                notification.className = class_name;
+                notification.innerHTML = html;
+                document.body.append(notification);
+                // setTimeout(() => (notification.style.opacity = 0), 10000);
+                setTimeout(() => notification.remove(), 10000);
+            }
+            showNotification({
+                // class_name: "alert_gone",
+                class_name: "notification",
+                html: "<p class='alert_gone'> {{ alert }} </p>",
+            });
+        </script>
+        {% endif %}
+        <div id="id_modal_td_kd" class="">
+            <form
+                id="id_td_kd_form"
+                class="form_form"
+                action="{% url 'specification' %}"
+                method="post"
+                enctype="multipart/form-data"
+            >
+                {% csrf_token %}
+                <div class="add_to_plan">
+                    <h3>Форма загрузки КД</h3>
+                    <div class="form_inner_label">{{ form.draw_files.label }}</div>
+                    <div class="form_inner_div">{{ form.draw_files }}</div>
+                    <div>
+                        <button type="submit" class="form_button">
+                            <p class="red_word">Загрузить чертежи</p>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <!-- Основная таблица интерфейса -->
+        {% if spec %}
+            <div class="table_div">
+                <h3>Изделия</h3>
+                <p>
+                    <input type="button" onclick="window.location.href = '{{ request.path }}';" value="Сбросить фильтр" />
+                </p>
+                <table title="Спецификация" class="table_spec" id="id_table">
+                    <tr class="table_header_row">
+                        <td class="td_cell">Чертеж</td>
+                        <td class="td_cell">Наименование</td>
+                        <td class="td_cell">Материал</td>
+                        <td class="td_cell">Количество</td>
+                        <td class="td_cell">Длина</td>
+                        <td class="td_cell">Действия</td>
+                    </tr>
+                    <tr class="table_row">
+                    </tr>
+                </table>
+                 <div>
+                    <button type="submit" class="form_button">
+                        <p class="red_word">Отправить</p>
+                    </button>
+                </div>
+            </div>
+        {% endif %}
+        <br />
+        <br />
+
+        <!-- prettier-ignore -->
+        {% if user.username == 'admin' %}
+        <a href="{% url 'home' %}">Назад</a> <br />
+        {%endif %}
+        <script src="{% static 'tehnolog/js/tehnolog.js' %}"></script>
+        <script>
+            // кнопка загрузить ТД
+            document.addEventListener("DOMContentLoaded", function () {
+                // При загрузке документа
+                addRow("id_table");
+                const sel = id_td_form.elements.model_order_query; // Получаем все селекты
+                const buttons = document.querySelectorAll(".td_upload_btn"); // Получаем кнопки с классом
+                buttons.forEach(function (c) {
+                    // Для каждой кнопки
+                    c.onclick = function () {
+                        // Слушаем нажатие
+                        // Если нажата, то выбирает тот option, который в тексте кнопки.
+                        const modal = document.querySelector("#id_modal_td");
+                        modal.style.display = "block";
+                        for (var n = 0; n < sel.length; n++) {
+                            if (sel.options[n].text == c.value) sel.options[n].selected = true;
+                        }
+                        id_td_form.elements.list_names.focus();
+                        window.onclick = function (event) {
+                            if (event.target == modal) {
+                                modal.style.display = "none";
+                            }
+                        };
+                    };
+                });
+            });
+
+
+            var draws = [];
+            draws.push("Выберите чертеж");
+            {% for draw in draws %}
+                draws.push("{{ draw }}")
+            {% endfor %}
+
+
+            const add_button = document.createElement('button');
+            add_button.classList.add('btn');
+            add_button.setAttribute('onclick', 'addRow("id_table")');
+            add_button.textContent = 'Добавить строку';
+
+            var lastRowIndex = 0
+
+            function addRow(tableID) {
+
+                // Get a reference to the table
+                var tableRef = document.getElementById(tableID);
+                var previousLastRowIndex = lastRowIndex
+
+                // Insert a row in the table at row index 0
+                var newRow = tableRef.insertRow(-1);
+                newRow.className = "table_row";
+                lastRowIndex = newRow.rowIndex
+
+                // Insert a cell in the row at index 0
+                for (var n = 0; n < 6; n++) {
+                    var newCell = newRow.insertCell(0);
+                    newCell.className = "td_cell";
+                };
+
+                const delete_button = document.createElement('button');
+                delete_button.classList.add('btn');
+                delete_button.setAttribute('onclick', 'DeleteRow(this)');
+                delete_button.textContent = 'Удалить';
+
+                newRow.cells[5].appendChild(delete_button);
+                newRow.cells[5].appendChild(add_button);
+
+                const listSelects = [];
+                var data = [];
+                data.push("Выберите изделие по наименованию");
+                {% for name in names %}
+                    data.push("{{ name }}")
+                {% endfor %}
+
+                const select = document.createElement("select");
+                listSelects.push(select);
+                select.id = `select_${newRow.rowIndex}`;
+                select.name = `selectName`;
+                select.className = "name_select"
+                select.setAttribute("onchange", "SelectChoiсe(this)")
+
+                for (let i = 0; i < data.length; i++) {
+                    const option = document.createElement("option");
+                    option.className = "name_select_option"
+                    option.value = data[i];
+                    option.text = data[i];
+                    select.add(option);
+                };
+
+                const select_draw = document.createElement("select");
+                listSelects.push(select_draw);
+                select_draw.id = `select_draw_${newRow.rowIndex}`;
+                select_draw.name = `selectName`;
+                select_draw.className = "name_select"
+                select_draw.setAttribute("onchange", "changeChoice(this)")
+
+                for (let i = 0; i < draws.length; i++) {
+                    const option = document.createElement("option");
+                    option.className = "name_select_option"
+                    option.value = draws[i];
+                    option.text = draws[i];
+                    select_draw.add(option);
+                };
+
+                newRow.cells[1].appendChild(select);
+                newRow.cells[0].appendChild(select_draw);
+
+
+            };
+
+            function DeleteRow(obj){
+               var table = obj.parentNode.parentNode.parentNode;
+               var currentRowIndex = obj.parentNode.parentNode.rowIndex;
+               table.deleteRow(currentRowIndex);
+               lastRowIndex = lastRowIndex - 1;
+               console.log(lastRowIndex)
+               if (lastRowIndex > 1) {
+                    table.rows[lastRowIndex].cells[5].appendChild(add_button);
+               } else {
+                    addRow("id_table");
+               }
+            };
+
+            function changeChoice(obj){
+              if (obj.selectedIndex) {
+                   var currentRow = obj.parentNode.parentNode;
+               }
+            };
+
+            function SelectChoiсe(obj){
+              if (obj.selectedIndex) {
+                   var currentRow = obj.parentNode.parentNode;
+                   if (obj.value == "Добавить новую запись") {
+                        currentRow.cells[1].removeChild(obj)
+                        currentRow.cells[1].setAttribute("contenteditable", "true")
+                        currentRow.cells[2].setAttribute("contenteditable", "true")
+                        currentRow.cells[3].setAttribute("contenteditable", "true")
+                        currentRow.cells[4].setAttribute("contenteditable", "true")
+                   } else {
+                       var currentRow = obj.parentNode.parentNode;
+                       {% for row in spec %}
+                            {% for key, value in row.items %}
+                                var value = "{{ value }}"
+                                if (value == obj.value) {
+                                   currentRow.cells[2].innerText = "{{ row.Материал }}";
+                                   currentRow.cells[3].innerText = "{{ row.Количество }}";
+                                   currentRow.cells[4].innerText = "{{ row.Длина }}";
+                                }
+                            {% endfor %}
+                       {% endfor %}
+                       if (currentRow.rowIndex == lastRowIndex) {
+                            addRow("id_table");
+                       }
+                   }
+              }
+            }
+        </script>
+
+        <div style="height: 150px"></div>
+    </body>
+</html>

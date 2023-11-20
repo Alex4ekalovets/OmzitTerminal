@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', "lkjasj129u23lknjasdasdad1")
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -82,9 +82,9 @@ WSGI_APPLICATION = 'omzit_terminal.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'terminal',
-        'USER': 'admin',
-        'PASSWORD': 'Epass1',
+        'NAME': 'postgres',
+        'USER': 'postgres',
+        'PASSWORD': 'Valm0nts89',
         'HOST': 'localhost',
         # 'HOST': '192.168.8.163',
         # 'HOST': '192.168.8.30'

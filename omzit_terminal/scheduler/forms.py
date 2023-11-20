@@ -6,7 +6,7 @@ from .models import ShiftTask, WorkshopSchedule, Doers, model_pattern, model_err
 from django.forms import ModelChoiceField
 from django.db.models import Q
 from tehnolog.models import ProductCategory
-from constructor.forms import QueryAnswerForm
+from constructor.forms import QueryAnswerForm, MultipleFileField
 
 
 class SchedulerWorkshop(forms.Form):
@@ -116,3 +116,10 @@ class FioDoer(forms.Form):
                                    required=False)
     fio_4 = forms.ModelChoiceField(qs_st_fio, label='ФИО исполнителя 4', empty_label='ФИО не выбрано', initial='',
                                    required=False)
+
+
+class DrawsUpload(forms.Form):
+    """
+    Форма ответа на заявку КД
+    """
+    draw_files = MultipleFileField(label='Чертежи pdf')
