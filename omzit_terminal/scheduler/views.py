@@ -1,6 +1,10 @@
 import asyncio
 import datetime
+import json
 import os
+import shlex
+import subprocess
+import sys
 
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
@@ -13,39 +17,47 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.db.models import Q
 
+from omzit_terminal.settings import BASE_DIR
+
 from .filters import get_filterset
-from .forms import SchedulerWorkshop, SchedulerWorkplace, FioDoer, QueryDraw
+from .forms import SchedulerWorkshop, SchedulerWorkplace, FioDoer, QueryDraw, DrawsUpload, SendApplication
 from .models import WorkshopSchedule, ShiftTask
 
 from .services.schedule_handlers import get_all_done_rate
 from worker.services.master_call_function import terminal_message_to_id
 
+TERMINAL_GROUP_ID = os.getenv('ADMIN_TELEGRAM_ID')
+
 
 @login_required(login_url="login/")
 def scheduler(request):
-    if str(request.user.username).strip() != "admin" and str(request.user.username[:4]).strip() != "disp":
+    """
+        Планирование графика цеха и создание запросов на КД
+        :param request:
+        :return:
+        """
+    if str(request.user.username).strip()[:5] != "admin" and str(request.user.username[:4]).strip() != "disp":
         raise PermissionDenied
-
-    """
-    Планирование графика цеха и создание запросов на КД
-    :param request:
-    :return:
-    """
-    # group_id = -908012934  # тг группа
-    group_id = -4027358064  # тг группа
+    group_id = TERMINAL_GROUP_ID  # тг группа
 
     # обновление процента готовности всех заказов
     # TODO модифицировать расчёт процента готовности всех заказов по взвешенной трудоёмкости
     #  сделать невозможным заполнять запрос с кириллицей
     get_all_done_rate()
     # график изделий
-    workshop_schedule = (WorkshopSchedule.objects.values('workshop', 'order', 'model_name', 'datetime_done',
-                                                         'order_status', 'done_rate')
+    workshop_schedule_fields = ('workshop', 'order', 'model_name', 'datetime_done', 'order_status', 'done_rate')
+    workshop_schedule = (WorkshopSchedule.objects.values(*workshop_schedule_fields)
                          .exclude(datetime_done=None).exclude(order_status='не запланировано')
                          .order_by('datetime_done'))
+    # фильтры в колонки графика
+    f_w = get_filterset(data=request.GET, queryset=workshop_schedule, fields=workshop_schedule_fields, index=1)
     # перечень запросов на КД
-    td_queries = WorkshopSchedule.objects.values('model_order_query', 'query_prior', 'td_status').exclude(
-        td_status='отработано')
+    td_queries_fields = ('model_order_query', 'query_prior', 'td_status', 'order_status')  # поля таблицы
+    td_queries = (WorkshopSchedule.objects.values(*td_queries_fields).exclude(td_status='завершено'))
+    # фильтры в колонки заявок
+    # f_q = get_filterset_second_table(data=request.GET, queryset=td_queries, fields=td_queries_fields)
+    f_q = get_filterset(data=request.GET, queryset=td_queries, fields=td_queries_fields, index=2)
+
     # форма запроса КД
     form_query_draw = QueryDraw()
     if request.method == 'POST':
@@ -54,57 +66,54 @@ def scheduler(request):
             print(form_workshop_plan.cleaned_data)
             # заполнение графика цеха датой готовности и цехом
             try:
-                # если не выбран цех
-                if form_workshop_plan.cleaned_data['workshop'] == '5':
-                    form_workshop_plan.add_error(None, 'Не выбран цех.')
-                    context = {'form_workshop_plan': form_workshop_plan, 'td_queries': td_queries}
-                    return render(request, r"scheduler/scheduler.html", context=context)
                 # Планирование графика цеха
-                # срок готовности, категория изделия, статус изделия, ФИО планировщика
+                # заполнение срока готовности, категория изделия, статус изделия, ФИО планировщика
                 (WorkshopSchedule.objects.filter(model_order_query=form_workshop_plan.
                                                  cleaned_data['model_order_query'].model_order_query).update(
                     datetime_done=form_workshop_plan.cleaned_data['datetime_done'],
                     workshop=form_workshop_plan.cleaned_data['workshop'],
                     product_category=str(form_workshop_plan.cleaned_data['category']),
                     order_status='запланировано',
-                    dispatcher_plan_ws_fio=f'{request.user.first_name} {request.user.last_name}'
-                ))
-                # Заполнение данных СЗ,
-                # статус СЗ, ФИО планировщика, категория изделия,
+                    dispatcher_plan_ws_fio=f'{request.user.first_name} {request.user.last_name}'))
+                # Заполнение данных СЗ, статус СЗ, ФИО планировщика, категория изделия,
                 alert = 'Данные в график успешно занесены! '
                 print('Данные в график успешно занесены!\n')
                 # заполнение модели ShiftTask данными планирования цехов
+                print(ShiftTask.objects.filter(model_order_query=form_workshop_plan.cleaned_data['model_order_query']))
                 (ShiftTask.objects.filter(
                     model_order_query=form_workshop_plan.cleaned_data['model_order_query'].model_order_query)
                  .update(workshop=form_workshop_plan.cleaned_data['workshop'],
                          datetime_done=form_workshop_plan.cleaned_data['datetime_done'],
-                         product_category=str(form_workshop_plan.cleaned_data['category'])
+                         product_category=str(form_workshop_plan.cleaned_data['category']),
                          ))
                 print('Данные сменного задания успешно занесены!')
                 alert += 'Данные сменного задания успешно занесены.'
                 context = {'form_workshop_plan': form_workshop_plan, 'td_queries': td_queries, 'alert': alert,
-                           'workshop_schedule': workshop_schedule, 'form_query_draw': form_query_draw}
+                           'workshop_schedule': workshop_schedule, 'form_query_draw': form_query_draw,
+                           'filter_w': f_w, 'filter_q': f_q}
                 # сообщение в группу
                 success_group_message = (f"Заказ-модель: "
                                          f"{form_workshop_plan.cleaned_data['model_order_query'].model_order_query} "
                                          f"успешно запланирован на {form_workshop_plan.cleaned_data['datetime_done']}. "
                                          f"Запланировал: {request.user.first_name} {request.user.last_name}.")
-                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
-                print(success_group_message, group_id)
+                asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
             except Exception as e:
                 print(e, ' Ошибка запаси в базу SchedulerWorkshop')
                 alert = f'Ошибка занесения данных.'
                 context = {'form_workshop_plan': form_workshop_plan, 'workshop_schedule': workshop_schedule,
-                           'td_queries': td_queries, 'form_query_draw': form_query_draw, 'alert': alert}
+                           'td_queries': td_queries, 'form_query_draw': form_query_draw, 'alert': alert,
+                           'filter_w': f_w, 'filter_q': f_q}
                 return render(request, r"scheduler/scheduler.html", context=context)
         else:
             context = {'form_workshop_plan': form_workshop_plan, 'workshop_schedule': workshop_schedule,
-                       'td_queries': td_queries, 'form_query_draw': form_query_draw}
+                       'td_queries': td_queries, 'form_query_draw': form_query_draw,
+                       'filter_w': f_w, 'filter_q': f_q}
     else:
         # чистые формы для первого запуска
         form_workshop_plan = SchedulerWorkshop()
         context = {'form_workshop_plan': form_workshop_plan, 'workshop_schedule': workshop_schedule,
-                   'td_queries': td_queries, 'form_query_draw': form_query_draw}
+                   'td_queries': td_queries, 'form_query_draw': form_query_draw,
+                   'filter_w': f_w, 'filter_q': f_q}
     return render(request, r"scheduler/scheduler.html", context=context)
 
 
@@ -115,7 +124,7 @@ def td_query(request):
     :param request:
     :return:
     """
-    group_id = -908012934  # тг группа
+    group_id = TERMINAL_GROUP_ID  # тг группа
     if request.method == 'POST':
         form_query_draw = QueryDraw(request.POST)
         if form_query_draw.is_valid():
@@ -145,8 +154,7 @@ def td_query(request):
                                          f"{form_query_draw.cleaned_data['order_query']}. Приоритет: "
                                          f"{form_query_draw.cleaned_data['query_prior']}. "
                                          f"Заявку составил: {request.user.first_name} {request.user.last_name}.")
-                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
-                print(success_group_message, group_id)
+                asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
                 # создание папки в общем доступе для чертежей модели
                 if not os.path.exists(rf'C:\draws\{model_order_query}'):
                     os.mkdir(rf'C:\draws\{model_order_query}')
@@ -158,7 +166,6 @@ def td_query(request):
 
 @login_required(login_url="login/")
 def schedulerwp(request):
-    # TODO сортировка
     """
     Планирование графика РЦ
     :param request:
@@ -166,7 +173,7 @@ def schedulerwp(request):
     """
     # отображение графика РЦ
     # выборка из уже занесенного
-    if str(request.user.username).strip() != "admin" and str(request.user.username[:4]).strip() != "disp":
+    if str(request.user.username).strip()[:5] != "admin" and str(request.user.username[:4]).strip() != "disp":
         raise PermissionDenied
     shift_task_fields = (
         'id',
@@ -197,7 +204,6 @@ def schedulerwp(request):
                     .filter(ws_number=str(ws_number), datetime_done=datetime_done, next_shift_task=None)
                     .filter(Q(fio_doer='не распределено') | Q(st_status='брак') | Q(st_status='не принято'))
                 )
-                print(filtered_workplace_schedule)
             except Exception as e:
                 filtered_workplace_schedule = dict()
                 print('Ошибка получения filtered_workplace_schedule', e)
@@ -212,7 +218,7 @@ def schedulerwp(request):
         'workplace_schedule': workplace_schedule,
         'form_workplace_plan': form_workplace_plan,
         'alert_message': alert_message,
-        'filter': f
+        # 'filter': f
     }
     return render(request, fr"schedulerwp/schedulerwp.html", context=context)
 
@@ -226,7 +232,7 @@ def schedulerfio(request, ws_number, datetime_done):
     :param request:
     :return:
     """
-    if str(request.user.username).strip() != "admin" and str(request.user.username[:4]).strip() != "disp":
+    if str(request.user.username).strip()[:5] != "admin" and str(request.user.username[:4]).strip() != "disp":
         raise PermissionDenied
 
     print(ws_number)
@@ -249,22 +255,21 @@ def schedulerfio(request, ws_number, datetime_done):
     except Exception as e:
         filtered_workplace_schedule = dict()
         print('Ошибка получения filtered_workplace_schedule', e)
-
     success = 1
     alert_message = ''
-
     if request.method == 'POST':
         print('POST')
         form_fio_doer = FioDoer(request.POST, ws_number=ws_number, datetime_done=formatted_datetime_done)
         if form_fio_doer.is_valid():
+            # Получение списка без None
             fios = list(filter(
                 lambda x: x != 'None',
                 (str(form_fio_doer.cleaned_data[f'fio_{i}']) for i in range(1, 5))
             ))
             unique_fios = set(fios)
-            doers_fios = ', '.join(unique_fios)
+            doers_fios = ', '.join(unique_fios)  # получение уникального списка
             print('DOERS-', doers_fios)
-            if len(fios) == len(unique_fios):
+            if len(fios) == len(unique_fios):  # если есть повторения в списке fios
                 shift_task = ShiftTask.objects.get(pk=form_fio_doer.cleaned_data['st_number'].id)
                 data = {
                     'fio_doer': doers_fios,
@@ -287,9 +292,10 @@ def schedulerfio(request, ws_number, datetime_done):
                     for field, value in data.items():
                         setattr(shift_task, field, value)
                 shift_task.save()
+
                 alert_message = f'Успешно распределено!'
             else:
-                alert_message = f'Исполнители дублируются. Повторите выбор исполнителей!'
+                alert_message = f'Исполнители дублируются. Измените исполнителей.'
                 success = 0
     else:
         form_fio_doer = FioDoer(ws_number=ws_number, datetime_done=formatted_datetime_done)
@@ -310,27 +316,15 @@ class LoginUser(LoginView):
     template_name = 'scheduler/login.html'
 
     def get_success_url(self):  # редирект после логина
-        user = self.request.user
-        if user.is_superuser:
+        if 'admin' in self.request.user.username:
             return reverse_lazy('home')
-        groups_urls = {
-            'technologist': 'tehnolog',
-            'dispatcher': 'scheduler',
-            'constructor': 'constructor',
-        }
-        user_groups = user.groups.filter(name__in=groups_urls.keys()).values_list("name", flat=True)
-        if len(user_groups) > 0:
-            return reverse_lazy(groups_urls.get(user_groups[0], 'home'))
-        return reverse_lazy('home')
-
-        # if 'admin' in self.request.user.username:
-        #     return reverse_lazy('home')
-        # elif 'disp' in self.request.user.username:
-        #     return reverse_lazy('scheduler')
-        # elif 'tehnolog' in self.request.user.username:
-        #     return reverse_lazy('tehnolog')
-        # elif 'constructor' in self.request.user.username:
-        #     return reverse_lazy('constructor')
+        elif 'disp' in self.request.user.username:
+            return reverse_lazy('scheduler')
+        elif 'tehnolog' in self.request.user.username:
+            return reverse_lazy('tehnolog')
+        elif 'constructor' in self.request.user.username:
+            return reverse_lazy('constructor')
+        print(self.request.user.username)
 
 
 def logout_user(request):  # разлогинивание пользователя
@@ -351,3 +345,49 @@ def show_workshop_scheme(request):
         return response
     except FileNotFoundError as e:
         print(e)
+
+
+def create_specification(request):
+    alert = ""
+    spec = dict()
+    json_path = BASE_DIR / "specification.json"
+    draw_form = DrawsUpload()
+    send_form = SendApplication()
+    if request.method == "POST":
+        form = DrawsUpload(request.POST, request.FILES)
+        files = []
+        if form.is_valid():
+            files = dict(request.FILES)["draw_files"]
+            get_specifications(files)
+            alert = "Выполняется формирование спецификации..."
+        context = {'spec': spec, 'form': form, 'alert': alert, "files": files}
+        return render(request, r"scheduler/template.html", context=context)
+    else:
+        try:
+            with open(json_path, 'r') as json_file:
+                spec = json.load(json_file)
+        except Exception:
+            print("Ошибка получения файла спецификации")
+        rows = []
+        names = []
+        draw_names = dict()
+        draws = set()
+        if spec:
+            spec.pop("columns")
+            for key, value in spec.items():
+                draw_names[key] = []
+                for row in value:
+                    draw_names[key].append(row["Наименование"])
+                    row["Чертеж"] = key
+                    draws.add(key)
+                    names.append(row["Наименование"])
+                rows.extend(value)
+    context = {'draw_names': draw_names, 'rows': rows, "names": names, "draws": draws, 'form': draw_form, "send_form": send_form, 'alert': alert}
+    return render(request, r"scheduler/template.html", context=context)
+
+
+def get_specifications(files):
+    filenames = ";".join([file.name for file in files])
+    py_file = os.path.join(r"D:\Projects\cdw_dxf_reader\cwd", "read.py")
+    python_dir = r'D:\Projects\cdw_dxf_reader\venv\Scripts\python.exe'
+    subprocess.Popen([python_dir, py_file, f"{filenames}"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

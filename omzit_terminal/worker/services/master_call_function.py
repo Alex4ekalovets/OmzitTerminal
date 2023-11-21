@@ -1,28 +1,9 @@
 import os
 from aiogram import Bot, Dispatcher
-from dotenv import load_dotenv
-
-from omzit_terminal.settings import BASE_DIR
-
-dotenv_path = os.path.abspath(__file__)
-
-while True:
-    dotenv_path = os.path.dirname(dotenv_path)
-    if '.env' in os.listdir(dotenv_path):
-        dotenv_path = os.path.join(dotenv_path, '.env')
-        print(dotenv_path)
-        break
-    elif dotenv_path == os.path.dirname(BASE_DIR):
-        break
-
-
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path)
-
 TOKEN = os.getenv('RSU_TOKEN')
 
 bot = Bot(token=TOKEN)  # инициализация бота
-dp = Dispatcher()  # инициализация диспетчера
+dp = Dispatcher(bot)  # инициализация диспетчера
 # ids
 # admin_id = int(os.getenv('ADMIN_TELEGRAM_ID'))
 # users = (admin_id,)  # админ
@@ -37,8 +18,7 @@ dp = Dispatcher()  # инициализация диспетчера
 # dispatcher_list = (admin_id, savchenko_id, pavluchenkova_id,)  # диспетчеры
 # master_list = (admin_id, ermishkin_id, posohov_id, gordii_id, kondratiev_id, achmetov_id)  # производство
 # группа мастеров
-# omzit_master_group1_id = -4005524766
-omzit_master_group1_id = -4027358064
+omzit_master_group1_id = -4027358064  # -4005524766
 
 
 async def send_call_master(message_to_master):
@@ -51,6 +31,13 @@ async def send_call_master(message_to_master):
 
 
 async def send_call_dispatcher(message_to_master):
+    """
+    Отправка сообщения в группу мастерам для диспетчера
+    :param message_to_master:
+    :return:
+    """
+    # TODO сравнить с send_call_master и заменить на него если не понадобится разделять процессы мастера и диспетчера
+    #  до обновления 5
     await bot.send_message(chat_id=omzit_master_group1_id, text=message_to_master)
 
 
@@ -70,6 +57,7 @@ def get_client_ip(request):
     :param request:
     :return:
     """
+    # TODO убрать HTTP_X_FORWARDED_FOR, если не понадобится до обновления 4
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[-1].strip()

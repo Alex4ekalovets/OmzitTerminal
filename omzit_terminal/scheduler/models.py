@@ -1,10 +1,27 @@
 import datetime
 
+from django.core.validators import RegexValidator
 from django.db import models
 from django.forms import ModelChoiceField
 from django.utils import timezone
 
 from tehnolog.models import ProductCategory
+
+model_pattern = r"^[\-A-Za-z0-9]+$"
+model_error_text = "Имя модели может содержать только цифры и буквы латинского алфавита и знак '-' тире"
+
+order_pattern = r"^[А-Яа-яA-Za-z0-9\(\)\-]+$"
+order_error_text = 'Имя заказа может содержать только цифры, буквы, знаки тире "-" и скобки "()"'
+
+model_regex = RegexValidator(
+    regex=model_pattern,
+    message=model_error_text,
+)
+
+order_regex = RegexValidator(
+    regex=order_pattern,
+    message=order_error_text,
+)
 
 
 class WorkshopSchedule(models.Model):
@@ -13,9 +30,9 @@ class WorkshopSchedule(models.Model):
     """
     objects = models.Manager()  # явное указание метода для pycharm
     workshop = models.PositiveSmallIntegerField(verbose_name='Цех', null=True)
-    model_name = models.CharField(max_length=30, verbose_name='Модель изделия')
+    model_name = models.CharField(max_length=30, verbose_name='Модель изделия', validators=[model_regex])
     datetime_done = models.DateField(null=True, verbose_name='Планируемая дата готовности')
-    order = models.CharField(max_length=100, verbose_name='Номер заказа')
+    order = models.CharField(max_length=100, verbose_name='Номер заказа', validators=[order_regex])
     order_status = models.CharField(max_length=20, default='не запланировано', verbose_name='Статус заказа')
 
     model_order_query = models.CharField(max_length=60, null=True, verbose_name='заказ и модель', unique=True)
@@ -78,9 +95,9 @@ class ShiftTask(models.Model):
     """
     objects = models.Manager()  # явное указание метода для pycharm
     workshop = models.PositiveSmallIntegerField(verbose_name='Цех', null=True)
-    model_name = models.CharField(max_length=30, db_index=True, verbose_name='Модель изделия')
+    model_name = models.CharField(max_length=30, db_index=True, verbose_name='Модель изделия', validators=[model_regex])
     datetime_done = models.DateField(verbose_name='Ожидаемая дата готовности', null=True)
-    order = models.CharField(max_length=100, verbose_name='Номер заказа', null=True)
+    order = models.CharField(max_length=100, verbose_name='Номер заказа', null=True, validators=[order_regex])
     model_order_query = models.CharField(max_length=60, null=True, verbose_name='заказ и модель')
     op_number = models.CharField(max_length=20, verbose_name='Номер операции')
     op_name = models.CharField(max_length=200, verbose_name='Имя операции')
@@ -117,7 +134,7 @@ class ShiftTask(models.Model):
     excel_list_name = models.CharField(max_length=100, null=True, verbose_name='Лист excel технологического процесса')
     draw_path = models.CharField(max_length=255, null=True, blank=True, verbose_name='путь к связанным чертежам')
     draw_filename = models.TextField(null=True, blank=True, verbose_name='имя чертежа')
-    product_category = models.CharField(max_length=255, null=True, verbose_name='Категория изделия')
+    product_category = models.CharField(null=True, verbose_name='Категория изделия')
     job_duration = models.DurationField(null=True, blank=True, verbose_name='Длительность работы')
     datetime_job_resume = models.DateTimeField(null=True, blank=True, verbose_name='Время возобновления работы')
     next_shift_task = models.ForeignKey(
@@ -135,6 +152,7 @@ class ShiftTask(models.Model):
         verbose_name_plural = 'Сменные задания'
 
     def save(self, *args, **kwargs):
+        print("save")
         self.calc_job_duration()
         super().save(*args, **kwargs)
 
@@ -142,24 +160,28 @@ class ShiftTask(models.Model):
         """
         Вычисляет длительность работы по изменению статусов
         """
-        if self.pk and self.st_status in ("пауза", "принято", "брак"):
+        if self.pk:
             current_st_status = ShiftTask.objects.get(pk=self.pk).st_status
-            if current_st_status in ("в работе", "ожидание мастера", "ожидание контролёра"):
+            print(self.pk, current_st_status, self.st_status)
+            if self.st_status in ("пауза", "принято", "брак"):
+                if current_st_status in ("в работе", "ожидание мастера", "ожидание контролёра"):
 
-                if not self.job_duration:
-                    self.job_duration = datetime.timedelta(0)
+                    if not self.job_duration:
+                        self.job_duration = datetime.timedelta(0)
 
-                if self.datetime_job_resume:
-                    #  если остановка работы не первая
-                    #  добавляем длительность со времени возобновления работы
-                    self.job_duration += timezone.now() - self.datetime_job_resume
-                else:
-                    #  если первая остановка работы
-                    #  добавляем длительность со времени начала работы
-                    self.job_duration += timezone.now() - self.datetime_job_start
+                    if self.datetime_job_resume:
+                        #  если остановка работы не первая
+                        #  добавляем длительность со времени возобновления работы
+                        self.job_duration += timezone.now() - self.datetime_job_resume
+                    else:
+                        #  если первая остановка работы
+                        #  добавляем длительность со времени начала работы
+                        self.job_duration += timezone.now() - self.datetime_job_start
 
-        elif self.pk and self.st_status in ("в работе",):
-            # после возобновления работы после паузы устанавливаем текущее время для поля datetime_job_resume
-            current_st_status = ShiftTask.objects.get(pk=self.pk).st_status
-            if current_st_status == "пауза":
-                self.datetime_job_resume = timezone.now()
+            elif self.st_status in ("в работе",):
+                # после возобновления работы после паузы устанавливаем текущее время для поля datetime_job_resume
+                if current_st_status == "пауза":
+                    self.datetime_job_resume = timezone.now()
+            else:
+                print("Else", self.pk, current_st_status, self.st_status)
+

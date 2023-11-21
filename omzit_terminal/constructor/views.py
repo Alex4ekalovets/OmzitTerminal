@@ -1,8 +1,7 @@
+import os
 import asyncio
 import datetime
-import os
-from django.http import HttpResponseRedirect, FileResponse
-from django.urls import reverse
+from django.http import FileResponse
 from tehnolog.services.service_handlers import handle_uploaded_file
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
@@ -10,15 +9,20 @@ from scheduler.models import WorkshopSchedule
 from .forms import QueryAnswer
 from worker.services.master_call_function import terminal_message_to_id
 from django.core.exceptions import PermissionDenied
+from scheduler.filters import get_filterset
+# ADMIN_TELEGRAM_ID
+TERMINAL_GROUP_ID = os.getenv('ADMIN_TELEGRAM_ID')
 
 
 @login_required(login_url="../scheduler/login/")
 def constructor(request):
-    if str(request.user.username).strip() != "admin" and str(request.user.username[:11]).strip() != "constructor":
+    if str(request.user.username).strip()[:5] != "admin" and str(request.user.username[:11]).strip() != "constructor":
         raise PermissionDenied
-    group_id = -908012934  # тг группа
-    td_queries = (WorkshopSchedule.objects.values('model_order_query', 'query_prior', 'td_status', 'td_remarks')
-                  .exclude(td_status='завершено'))
+    group_id = TERMINAL_GROUP_ID  # тг группа
+    td_queries_fields = ('model_order_query', 'query_prior', 'td_status', 'td_remarks', 'datetime_done',
+                         'td_query_datetime')  # поля таблицы
+    td_queries = (WorkshopSchedule.objects.values(*td_queries_fields).exclude(td_status='завершено'))
+    f = get_filterset(data=request.GET, queryset=td_queries, fields=td_queries_fields)  # фильтры в колонки
     query_answer_form = QueryAnswer()
     if request.method == 'POST':
         alert = ''
@@ -53,7 +57,6 @@ def constructor(request):
                     constructor_query_td_fio=f'{request.user.first_name} {request.user.last_name}',  # ФИО констр
                     td_remarks='')
 
-
             if success_message:
                 success_group_message = (f"Передано КД. Заказ-модель "
                                          f"{query_answer_form.cleaned_data['model_order_query'].model_order_query}. "
@@ -61,16 +64,16 @@ def constructor(request):
                                          f"{query_answer_form.cleaned_data['model_order_query'].model_order_query}/. "
                                          f"Передал КД: {request.user.first_name} {request.user.last_name}. "
                                          f"Загружено файлов: {i}.")
-                # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
-                print(success_group_message, group_id)
-            context = {'td_queries': td_queries, 'query_answer_form': query_answer_form, 'alert': alert}
+                asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=success_group_message))
+
+            context = {'filter': f, 'query_answer_form': query_answer_form, 'alert': alert}
             return render(request, r"constructor/constructor.html", context=context)
         else:
             print('INVALID FORM!')
             alert = 'invalid form'
-            context = {'td_queries': td_queries, 'query_answer_form': query_answer_form, 'alert': alert}
+            context = {'filter': f, 'query_answer_form': query_answer_form, 'alert': alert}
             return render(request, r"constructor/constructor.html", context=context)
-    context = {'td_queries': td_queries, 'query_answer_form': query_answer_form}
+    context = {'query_answer_form': query_answer_form, 'filter': f}
     return render(request, r"constructor/constructor.html", context=context)
 
 

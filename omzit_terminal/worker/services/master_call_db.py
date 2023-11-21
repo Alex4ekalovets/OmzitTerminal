@@ -1,28 +1,31 @@
+import threading
 import time
 
 import psycopg2
-# from .db_config import host, dbname, user, password  # TODO перенести в env весь файл db_config
-import threading
+from .db_config import host, dbname, user, password  # TODO перенести в env весь файл db_config
 
 
 def continue_work(st_number):
-    print('Старт продолжателя')
-    time.sleep(30)
-    con = psycopg2.connect(dbname='postgres', user='postgres', password='Valm0nts89', host='localhost')
-    con.autocommit = True
-    update_query = f"""
-    UPDATE shift_task 
-    SET master_called = 'вызван', st_status='в работе'
-    WHERE id = '{st_number}' AND st_status='ожидание мастера';
-    """
+    print(f'Через 10 минут статус СЗ {st_number} изменится на "в работе"')
+    time.sleep(600)
     try:
-        with con.cursor() as cur:
-            cur.execute(update_query)
-            con.commit()
-            print('Конец продолжателя')
+        con = psycopg2.connect(dbname=dbname, user=user, password=password, host=host)
+        con.autocommit = True
+        update_query = f"""
+        UPDATE shift_task 
+        SET st_status='в работе' 
+        WHERE id = '{st_number}' AND st_status = 'ожидание мастера';
+        """
+        try:
+            with con.cursor() as cur:
+                cur.execute(update_query)
+                con.commit()
+        except Exception as e:
+            print(e, 'ошибка обновления')
     except Exception as e:
-        print(e, 'ошибка обновления')
-
+        print('Ошибка подключения к базе', e)
+    finally:
+        con.close()
 
 
 def select_master_call(ws_number: str, st_number) -> list or None:
@@ -36,12 +39,12 @@ def select_master_call(ws_number: str, st_number) -> list or None:
     messages_to_master = []  # список сообщений для мастера
     try:
         # подключение к БД
-        con = psycopg2.connect(dbname='postgres', user='postgres', password='Valm0nts89', host='localhost')
+        con = psycopg2.connect(dbname=dbname, user=user, password=password, host=host)
         con.autocommit = True
         # запрос на все статусы ожидания мастера
         select_query = f"""SELECT id, model_name, "order", op_number, op_name_full, fio_doer
                         FROM shift_task
-                        WHERE st_status in ('в работе', 'пауза') AND
+                        WHERE st_status in ('в работе', 'пауза')  AND
                         id = '{st_number}'               
                         """
         try:
@@ -62,17 +65,16 @@ def select_master_call(ws_number: str, st_number) -> list or None:
         else:  # обновление переменной факта вызова мастера
             print('Обновление статуса')
             update_query = f"""
-            UPDATE shift_task 
-            SET master_called = 'вызван', st_status='ожидание мастера', master_calls=master_calls+1
-            WHERE id = '{st_number}';
-            """
+                        UPDATE shift_task 
+                        SET master_called = 'вызван', st_status='ожидание мастера', master_calls=master_calls+1
+                        WHERE id = '{st_number}';
+                        """
             try:
                 with con.cursor() as cur:
                     cur.execute(update_query)
                     con.commit()
                     thread = threading.Thread(target=continue_work, args=(st_number,))
                     thread.start()
-                    print('Продолжение работы')
             except Exception as e:
                 print(e, 'ошибка обновления')
     except Exception as e:
@@ -103,10 +105,9 @@ def select_dispatcher_call(ws_number: str, st_number) -> list or None:
                 shift_tasks = cur.fetchall()
                 for task in shift_tasks:
                     # print(task)
-                    message_to_dispatcher = (
-                        f"Диспетчера ожидают на РЦ {ws_number}. Номер СЗ: {task[0]}. Заказ: {task[1]}. "
-                        f"Изделие: {task[2]}. Операция: {task[3]} {task[4]}. "
-                        f"Исполнители: {task[5]}")
+                    message_to_dispatcher = (f"Диспетчера ожидают на РЦ {ws_number}. Номер СЗ: {task[0]}. Заказ: {task[1]}. "
+                                             f"Изделие: {task[2]}. Операция: {task[3]} {task[4]}. "
+                                             f"Исполнители: {task[5]}")
                     messages_to_dispatcher.append(message_to_dispatcher)
         except Exception as e:
             print(e, 'ошибка выборке')

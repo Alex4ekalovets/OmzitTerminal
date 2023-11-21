@@ -2,11 +2,12 @@ import datetime
 
 from django import forms
 # from tehnolog.models import ProductModel
-from .models import ShiftTask, WorkshopSchedule, Doers
+from .models import ShiftTask, WorkshopSchedule, Doers, model_pattern, model_error_text, order_pattern, order_error_text
 from django.forms import ModelChoiceField
 from django.db.models import Q
 from tehnolog.models import ProductCategory
-from constructor.forms import QueryAnswerForm
+from constructor.forms import QueryAnswerForm, MultipleFileField, MultipleFileInput
+
 
 class SchedulerWorkshop(forms.Form):
     """
@@ -15,18 +16,14 @@ class SchedulerWorkshop(forms.Form):
 
     query_set = WorkshopSchedule.objects.filter(td_status='утверждено', order_status='не запланировано')
 
-    model_order_query = QueryAnswerForm(query_set, empty_label='выберите заказ-модель',
-                                        label='Заказ-модель', required=False)
+    model_order_query = QueryAnswerForm(query_set, empty_label='выберите заказ-модель', label='Заказ-модель')
 
-    # model_name = forms.ModelChoiceField(queryset=query_set, empty_label='Модель не выбрана',
-    #                                     label='Модель заказа для планирования')
-
-    workshop = forms.ChoiceField(choices=((1, 'Цех 1'), (2, 'Цех 2'), (3, 'Цех 3'), (4, 'Цех 4'), (5, 'Выбрать')),
-                                 label='Цех', initial=5, show_hidden_initial=True)
+    workshop = forms.ChoiceField(choices=((1, 'Цех 1'), (2, 'Цех 2'), (3, 'Цех 3'), (4, 'Цех 4')),
+                                 label='Цех', required=True)
     query_set = ProductCategory.objects.all()
     category = forms.ModelChoiceField(queryset=query_set, empty_label='Категория не выбрана',
-                                      label='Категория заказа')  # выбор категории
-    datetime_done = forms.DateField(label='Планируемая дата готовности', required=False,
+                                      label='Категория заказа', required=True)  # выбор категории
+    datetime_done = forms.DateField(label='Планируемая дата готовности', required=True,
                                     widget=forms.SelectDateWidget(empty_label=("год", "месяц", "день"),
                                                                   years=(datetime.datetime.now().year,
                                                                          datetime.datetime.now().year + 1)))
@@ -37,8 +34,10 @@ class QueryDraw(forms.Form):
     Форма запроса чертежа
     """
     # model_query = forms.CharField(max_length=50, label='Модель запроса КД', required=False)
-    model_query = forms.CharField(max_length=50, label='Модель запроса КД')
-    order_query = forms.CharField(max_length=50, label='Заказ запроса КД')
+    model_query = forms.CharField(max_length=50, label='Модель запроса КД',
+                                  widget=forms.TextInput(attrs={'pattern': model_pattern, 'title': model_error_text}))
+    order_query = forms.CharField(max_length=50, label='Заказ запроса КД',
+                                  widget=forms.TextInput(attrs={'pattern': order_pattern, 'title': order_error_text}))
     query_prior = forms.ChoiceField(choices=((1, 1), (2, 2), (3, 3), (4, 4)), label='Приоритет', initial=1,
                                     required=False)
 
@@ -82,7 +81,7 @@ class FiosLabel(ModelChoiceField):  # переопределение метод�
     """
 
     def label_from_instance(self, obj):
-        return (f"{obj.id}. Заказ - {obj.order}. №РЦ- {obj.ws_number}. Изделие - {obj.model_name}. "
+        return (f"{obj.id}. Заказ - {obj.order}. №T-{obj.ws_number}. Изделие - {obj.model_name}. "
                 f"Статус - {obj.st_status}")
 
 
@@ -119,3 +118,20 @@ class FioDoer(forms.Form):
                                    required=False)
     fio_4 = forms.ModelChoiceField(qs_st_fio, label='ФИО исполнителя 4', empty_label='ФИО не выбрано', initial='',
                                    required=False)
+
+
+class DrawsUpload(forms.Form):
+    """
+    Форма ответа на заявку КД
+    """
+    draw_files = MultipleFileField(label='Чертежи cdw',
+                                   widget=MultipleFileInput(attrs={'accept': ".cdw"}))
+
+
+class SendApplication(forms.Form):
+    """
+    Форма ответа на заявку КД
+    """
+    application_number = forms.CharField(max_length=50, label='Номер заявки')
+    application_name = forms.CharField(max_length=50, label='Имя заявки')
+    application_text = forms.CharField(widget=forms.Textarea, label='Текст заявки')

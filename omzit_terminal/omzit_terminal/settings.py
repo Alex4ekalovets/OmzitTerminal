@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'hz3tx--&mwt!w2c98wfj=il)5)nn*-7-9(3+j7*y*53&$e#k6d')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', "lkjasj129u23lknjasdasdad1")
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -21,11 +21,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['192.168.8.163', '192.168.8.30', '127.0.0.1']
 
-INTERNAL_IPS = [
-    # ...
-    "127.0.0.1",
-    # ...
-]
 
 # Application definition
 
@@ -41,9 +36,9 @@ INSTALLED_APPS = [
     'scheduler.apps.SchedulerConfig',
     'worker.apps.WorkerConfig',
     'constructor.apps.ConstructorConfig',
-    "debug_toolbar",
     'django_filters',
     'django_apscheduler',
+
 ]
 
 MIDDLEWARE = [
@@ -54,7 +49,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 
@@ -92,7 +86,7 @@ DATABASES = {
         'USER': 'postgres',
         'PASSWORD': 'Valm0nts89',
         'HOST': 'localhost',
-        # 'HOST': '192.168.8.163'
+        # 'HOST': '192.168.8.163',
         # 'HOST': '192.168.8.30'
         'PORT': '',
     }
@@ -144,13 +138,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/files/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'files')
 
-FILTERS_EMPTY_CHOICE_LABEL = ''
-
-
 # DATE_FORMAT = ['%d.%m.%Y']
 # DATE_INPUT_FORMATS = ['%d.%m.%Y']
-
-
 # Format string for displaying run time timestamps in the Django admin site. The default
 # just adds seconds to the standard Django format, which is useful for displaying the timestamps
 # for jobs that are scheduled to run on intervals of less than one minute.
@@ -166,3 +155,4 @@ APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"
 # that supports multiple background worker processes instead (e.g. Dramatiq, Celery, Django-RQ,
 # etc. See: https://djangopackages.org/grids/g/workers-queues-tasks/ for popular options).
 APSCHEDULER_RUN_NOW_TIMEOUT = 25  # Seconds
+# Запуск планировщика: python manage.py runscheduler

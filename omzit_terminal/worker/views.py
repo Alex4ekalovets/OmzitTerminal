@@ -1,18 +1,15 @@
 import datetime
 import json
-import os.path
-import re
+import os
 import time
-import socket
-
 import asyncio
+import socket
 from django.http import FileResponse
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.db.models import Q, QuerySet
 from django.shortcuts import render
 from django.core.exceptions import PermissionDenied
-from django.utils import timezone
 
 from omzit_terminal.settings import BASE_DIR
 from scheduler.models import ShiftTask
@@ -23,16 +20,13 @@ from .services.master_call_function import send_call_master, send_call_dispatche
 from .services.master_call_function import get_client_ip
 
 
-# TODO найти решение аналогов РЦ. Убрать обозначение РЦ "РЦ№1/РЦ№2" - вместо "/" использовать "-"
-
-
 def ws_number_choose(request):
     """
     Выбор РЦ
     :param request:
     :return:
     """
-    if str(request.user.username).strip() != "admin":
+    if str(request.user.username).strip()[:5] != "admin":
         raise PermissionDenied
     if request.method == 'POST':
         ws_number_form = WorkplaceChoose(request.POST)
@@ -56,15 +50,19 @@ def worker(request, ws_number):
     :return:
     """
     # список разрешённых по имени компа
-    # allowed_terminal_list = ('APM-0036.omep.net.ru',  # Екименко
-    #                          'SPR-008.omep.net.ru',  # Терминал №3
-    #                          'APM-0168.omep.net.ru',  # Отто
-    #                          'SVR-003.omep.net.ru')  # сервер 192.168.8.30
-    # terminal_ip = get_client_ip(request)  # определение IP терминала
-    # terminal_name = socket.getfqdn(terminal_ip)  # определение полного имени по IP
-    # if terminal_name not in allowed_terminal_list:
-    #     raise PermissionDenied
-
+    allowed_terminal_list = ('APM-0036',  # Екименко
+                             'SPR-008',  # Терминал №3
+                             'APM-0168',  # Отто
+                             'APM-0314',  # Чекаловец
+                             'APM-0168',
+                             'kubernetes'
+                             )  # сервер 192.168.8.30
+    terminal_ip = get_client_ip(request)  # определение IP терминала
+    terminal_name = socket.getfqdn(terminal_ip)  # определение полного имени по IP
+    if terminal_name[:terminal_name.find('.')] not in allowed_terminal_list:
+        raise PermissionDenied
+    else:
+        print(f'Permission granted to {terminal_name[:terminal_name.find(".")]}')
     # вывод таблицы распределённых РЦ
     today = datetime.datetime.now().strftime('%d.%m.%Y')
     initial_shift_tasks = (ShiftTask.objects.values('id', 'ws_number', 'model_name', 'order', 'op_number',
@@ -91,21 +89,25 @@ def worker(request, ws_number):
         print(request.POST)
         if 'сменное' not in request.POST['task_id']:
             # определение id записи
-            status_messages = {
-                'брак': 'Это СЗ уже принято как БРАК. Необходимо перепланирование.',
-                'принято': 'Сменно задание закрыто.',
-                'ожидание мастера': 'Мастер УЖЕ вызван.',
-                'ожидание контролёра': 'Ожидается контролёр.',
-                'в работе': 'Требуется вызов мастера',
-                'запланировано': 'СЗ принято в работу.'
-            }
-            status = re.search(r'\w*?--([а-яА-Я\s]*?)--', request.POST['task_id'])[1]
-            print(status)
-            alert_message = status_messages.get(status, 'Все ок')
+            if 'брак' in request.POST['task_id']:
+                alert_message = 'Это СЗ уже принято как БРАК. Необходимо перепланирование.'
+            elif 'принято' in request.POST['task_id']:
+                alert_message = 'Сменно задание закрыто.'
+            elif 'ожидание мастера' in request.POST['task_id']:
+                alert_message = 'Мастер УЖЕ вызван.'
+            elif 'ожидание контролёра' in request.POST['task_id']:
+                alert_message = 'Ожидается контролёр.'
+            elif 'в работе' in request.POST['task_id']:
+                alert_message = 'Требуется вызов мастера'
+            elif 'запланировано' in request.POST['task_id']:
+                alert_message = 'СЗ принято в работу.'
+            else:
+                alert_message = 'Все ок'
             index = request.POST['task_id'].find('--')
             task_id = request.POST['task_id'][:index]
             # статус в работе
-            if status == 'запланировано':  # если статус запланировано установка статуса в работе
+            # если статус запланировано или пауза установка статуса в работе
+            if 'запланировано' in request.POST['task_id'] or 'пауза' in request.POST['task_id']:
                 # if 'ожидание мастера' not in request.POST['task_id']:  # если нет статуса ожидания мастера
                 print('task_id: ', task_id)
                 # обновление данных
@@ -114,8 +116,8 @@ def worker(request, ws_number):
                                                                 datetime_job_start=datetime.datetime.now())
                     alert_message = 'Сменное задание запущенно в работу.'
                     # return redirect(f'/worker/{ws_number}', context={'alert': alert_message})  # обновление страницы
-                    # else:
-                    #     print("Мастер уже вызван!")
+                # else:
+                #     print("Мастер уже вызван!")
             elif 'пауза' in request.POST['task_id']:
                 resume_work(task_id=task_id)
             else:
@@ -124,13 +126,16 @@ def worker(request, ws_number):
             print('Выберите ещё раз.')
             alert_message = 'Неверный выбор. Выберите ещё раз. '
     else:
-        call_messages = {
-            'True': 'Вызов мастеру отправлен.',
-            'False': 'Сменное задание не принято в работу или вызов мастеру был отправлен ранее.',
-            'False_wrong': 'Неверный выбор.',
-            'True_disp': 'Сообщение диспетчеру отправлено.',
-        }
-        alert_message = call_messages.get(request.GET.get('call'), '')
+        if request.GET.get('call') == 'True':
+            alert_message = 'Вызов мастеру отправлен.'
+        elif request.GET.get('call') == 'False_wrong':
+            alert_message = 'Неверный выбор.'
+        elif request.GET.get('call') == 'False':
+            alert_message = 'Сменное задание не принято в работу или вызов мастеру был отправлен ранее.'
+        elif request.GET.get('call') == 'True_disp':
+            alert_message = 'Сообщение диспетчеру отправлено.'
+        else:
+            alert_message = ''
     print('select_shift_task', select_shift_task)
     context = {'initial_shift_tasks': initial_shift_tasks, 'ws_number': ws_number,
                'select_shift_task': select_shift_task, 'alert': alert_message}
@@ -157,7 +162,6 @@ def draws(request, ws_st_number: str):
                                              'draw_filename', 'model_order_query')
                     .filter(ws_number=ws_number, op_number=op_number, model_name=model_name, id=st_number))
     print(select_draws)
-    # draw_path = str(select_draws[0]['draw_path']).strip()  # путь к чертежам
     draw_path = fr"C:\draws\{select_draws[0]['model_order_query']}\\"
 
     pdf_links = []  # список словарей чертежей
@@ -188,8 +192,6 @@ def show_draw(request, ws_number, pdf_file):
 
 
 def make_master_call(request, ws_st_number):
-    # group_id = -908012934  # тг группа
-    # omzit_master_group1_id = -4005524766
     ws_number = str(ws_st_number)[:str(ws_st_number).find('-')]
     st_number = str(ws_st_number)[str(ws_st_number).rfind('-') + 1:]
     print('ws = ', ws_number)
@@ -198,22 +200,19 @@ def make_master_call(request, ws_st_number):
     # if st_number == '0':
     #     return redirect(f'/worker/{ws_number}?call=False')
     # выборка вызовов мастера на РЦ ws_number
-    messages = select_master_call(ws_number=str(ws_number), st_number=int(st_number))
+    messages = select_master_call(ws_number=str(ws_number), st_number=str(st_number))
     print('messages=', messages)
     time.sleep(1)  # пауза 1 сек
     if messages:
         print('Вызов мастера')
         for message in messages:
             asyncio.run(send_call_master(message))  # отправка в группу мастерам телеграм ботом
-            print(message)
             # отправка в группу
             # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=message))
         print('Окончание вызова')
         return redirect(f'/worker/{ws_number}?call=True')
     elif st_number == '0':
         return redirect(f'/worker/{ws_number}?call=False_wrong')
-    # elif messages is None and st_number:
-    #     return redirect(f'/worker/{ws_number}?call=False_need')
     else:
         return redirect(f'/worker/{ws_number}?call=False')
 
@@ -234,17 +233,13 @@ def make_dispatcher_call(request, ws_st_number):
     if messages:
         print('Вызов диспетчера')
         for message in messages:
-            # asyncio.run(send_call_dispatcher(message))  # отправка в группу мастерам и диспетчерам телеграм ботом
-            print(message)
+            asyncio.run(send_call_dispatcher(message))  # отправка в группу мастерам и диспетчерам телеграм ботом
             # отправка в группу
             # asyncio.run(terminal_message_to_id(to_id=group_id, text_message_to_id=message))
         print('Окончание вызова')
         return redirect(f'/worker/{ws_number}?call=True_disp')
     elif st_number == 0:
         return redirect(f'/worker/{ws_number}?call=False_wrong')
-    # else:
-    #     print('NO MESSAGE!')
-    #     return redirect(f'/worker/{ws_number}')
 
 
 def pause_work(task_id=None, is_lunch=False):
