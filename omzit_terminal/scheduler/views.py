@@ -20,7 +20,7 @@ from django.db.models import Q
 from omzit_terminal.settings import BASE_DIR
 
 from .filters import get_filterset
-from .forms import SchedulerWorkshop, SchedulerWorkplace, FioDoer, QueryDraw, DrawsUpload
+from .forms import SchedulerWorkshop, SchedulerWorkplace, FioDoer, QueryDraw, DrawsUpload, SendApplication
 from .models import WorkshopSchedule, ShiftTask
 
 from .services.schedule_handlers import get_all_done_rate
@@ -351,14 +351,16 @@ def create_specification(request):
     alert = ""
     spec = dict()
     json_path = BASE_DIR / "specification.json"
-    form = DrawsUpload()
+    draw_form = DrawsUpload()
+    send_form = SendApplication()
     if request.method == "POST":
         form = DrawsUpload(request.POST, request.FILES)
+        files = []
         if form.is_valid():
             files = dict(request.FILES)["draw_files"]
             get_specifications(files)
             alert = "Выполняется формирование спецификации..."
-        context = {'spec': spec, 'form': form, 'alert': alert}
+        context = {'spec': spec, 'form': form, 'alert': alert, "files": files}
         return render(request, r"scheduler/template.html", context=context)
     else:
         try:
@@ -368,17 +370,19 @@ def create_specification(request):
             print("Ошибка получения файла спецификации")
         rows = []
         names = []
+        draw_names = dict()
         draws = set()
         if spec:
             spec.pop("columns")
             for key, value in spec.items():
+                draw_names[key] = []
                 for row in value:
+                    draw_names[key].append(row["Наименование"])
                     row["Чертеж"] = key
                     draws.add(key)
                     names.append(row["Наименование"])
                 rows.extend(value)
-    print(draws)
-    context = {'spec': rows, "names": names, "draws": draws, 'form': form, 'alert': alert}
+    context = {'draw_names': draw_names, 'rows': rows, "names": names, "draws": draws, 'form': draw_form, "send_form": send_form, 'alert': alert}
     return render(request, r"scheduler/template.html", context=context)
 
 

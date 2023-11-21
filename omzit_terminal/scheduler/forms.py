@@ -6,7 +6,7 @@ from .models import ShiftTask, WorkshopSchedule, Doers, model_pattern, model_err
 from django.forms import ModelChoiceField
 from django.db.models import Q
 from tehnolog.models import ProductCategory
-from constructor.forms import QueryAnswerForm, MultipleFileField
+from constructor.forms import QueryAnswerForm, MultipleFileField, MultipleFileInput
 
 
 class SchedulerWorkshop(forms.Form):
@@ -122,4 +122,14 @@ class DrawsUpload(forms.Form):
     """
     Форма ответа на заявку КД
     """
-    draw_files = MultipleFileField(label='Чертежи pdf')
+    draw_files = MultipleFileField(label='Чертежи cdw',
+                                   widget=MultipleFileInput(attrs={'accept': ".cdw"}))
+
+
+class SendApplication(forms.Form):
+    """
+    Форма ответа на заявку КД
+    """
+    application_number = forms.CharField(max_length=50, label='Номер заявки')
+    application_name = forms.CharField(max_length=50, label='Имя заявки')
+    application_text = forms.CharField(widget=forms.Textarea, label='Текст заявки')
