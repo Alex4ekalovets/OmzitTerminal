@@ -1,4 +1,4 @@
-{% load static %}
+{% load static %} {% load i18n %}
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -9,72 +9,91 @@
 
     <body>
         {% if request.user.is_authenticated %}
-        <div class="logined_user">{{ user.username }} | <a href="{% url 'logout' %}"> Выйти </a></div>
-        <a href="{% url 'instruction' %}" class="red_word">Инструкция</a>
-        <a href="{% url 'scheme' %}" class="red_word">Планировка</a> <br />
-        {% else %} <a href="{% url 'login' %}"> Войти </a>
+        <div class="legend">
+            <div>
+                <p>Пользователь: {{ user.username }} | <a href="{% url 'logout' %}" class="legend_link"> Выйти </a></p>
+                <p><a href="{% url 'instruction' %}">Инструкция</a></p>
+                <p>Папка с чертежами: \\SVR-003\draws</p>
+                <p><a href="{% url 'report' 1 %}" class="legend_link"> Заполнение отчётов</a></p>
+            </div>
+        </div>
+        {% else %}
+        <a href="{% url 'login' %}"> Войти </a>
+        <!-- prettier-ignore -->
         {%endif %}
         <!-- prettier-ignore -->
         {% if user.username == 'admin' %}
         <a href="{% url 'home' %}">Назад</a> <br />
         {%endif %}
         <h1>Рабочее место планировщика рабочих центров</h1>
-        <br />
+        <br /><br /><br /><br /><br />
 
         <!--форма планирования РЦ-->
         <form action="{% url 'schedulerwp' %}" method="post" enctype="multipart/form-data" class="form_form">
             {% csrf_token %}
-            <div class="form-error">{{ form_workplace_plan.non_field_errors }}</div>
+            <div class="add_to_plan">
+                <div class="form-error">{{ form_workplace_plan.non_field_errors }}</div>
+                <div class="form_inner_label">Выбор терминала для распределения</div>
+                <br />
+                <div class="form_inner_label">{{ form_workplace_plan.ws_number.label }}:</div>
+                <div class="form_inner_div">{{ form_workplace_plan.ws_number }}</div>
 
-            <div class="form_inner_label"><label>Терминал: </label></div>
-            <div class="form_inner_div">{{ form_workplace_plan.ws_number }}</div>
+                <div class="form_inner_label">{{ form_workplace_plan.model_order_query.label }}:</div>
+                <div class="form_inner_div">{{ form_workplace_plan.model_order_query }}</div>
 
-            <div class="form_inner_label"><label>Дата готовности: </label></div>
-            <div class="form_inner_div">{{ form_workplace_plan.datetime_done }}</div>
+                <div class="form_inner_div"><button class="btn" type="submit">Выбрать</button></div>
 
-            <div class="form-error">{{ form_workplace_plan.errors }}</div>
-
-            <button class="form_button" type="submit">Выбрать</button>
+                <div class="form-error">{{ form_workplace_plan.errors }}</div>
+            </div>
         </form>
+
+        <script type="text/javascript" src="/jsi18n/"></script>
+        <script type="text/javascript">
+            window.__admin_media_prefix__ = "{% static 'admin/' %}";
+        </script>
+        <br /><br /><br />
+        {{ form_report.media }}
+
+        <div class="form_form" , id="id_report_form">
+            <div class="add_to_plan">
+                <div class="form-error">{{ form_report.non_field_errors }}</div>
+                <div class="form_inner_label">Формирование отчётов</div>
+                <br />
+
+                <div class="form_inner_label">{{ form_report.date_start.label }}:</div>
+                <div class="form_inner_div">{{ form_report.date_start }}</div>
+
+                <div class="form_inner_label">{{ form_report.date_end.label }}:</div>
+                <div class="form_inner_div">{{ form_report.date_end }}</div>
+
+                <div class="form-error">{{ form_report.errors }}</div>
+                <div class="form_inner_div">
+                    <button class="btn" onclick="getReport('st_report')">Загрузить xlsx отчет</button>
+                </div>
+                <div class="form_inner_div">
+                    <button class="btn" onclick="getReport('view_st_report')">Посмотреть отчет</button>
+                </div>
+            </div>
+        </div>
+
         {% if workplace_schedule %} {% if alert_message != '' %}
         <p class="alert">{{ alert_message }}</p>
-        {% endif %}
-        <!-- <form method="get" id="form2">
-            <p>
-                <input type="button" onclick="window.location.href = '{{ request.path }}';" value="Сбросить фильтр" />
-            </p>
-            <table title="График рабочих центров" class="table">
-                <tr class="table_header_row">
-                    <td class="td_cell">{{ filter.form.id }} №СЗ</td>
-                    <td class="td_cell">{{ filter.form.workshop }} Цех</td>
-                    <td class="td_cell">{{ filter.form.order }} Заказ</td>
-                    <td class="td_cell">{{ filter.form.model_name }} Изделие</td>
-                    <td class="td_cell">{{ filter.form.datetime_done }} Дата готовности</td>
-                    <td class="td_cell">{{ filter.form.ws_number }} Номер РЦ</td>
-                    <td class="td_cell">{{ filter.form.op_number }} Номер операции</td>
-                    <td class="td_cell">{{ filter.form.op_name_full }} Операция</td>
-                    <td class="td_cell">{{ filter.form.norm_tech }} Норма времени</td>
-                    <td class="td_cell">{{ filter.form.fio_doer }} Фио исполнителя</td>
-                    <td class="td_cell">{{ filter.form.st_status }} Статус СЗ</td>
-                </tr>
-
-                {% for line in filter.qs %}
-                <tr class="table_row">
-                    {% for el in line.values %}
-                    <td class="td_cell">{{ el }}</td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </table>
-        </form> -->
-        {% endif %}
+        {% endif %} {% endif %}
         <!-- prettier-ignore -->
         {% if user.username == 'admin' %}
         <a href="{% url 'home' %}">Назад</a> <br />
         {%endif %}
         <script>
-            function onChange() {
-                document.getElementById("form2").submit();
+            function getReport(url) {
+                var start = document.getElementById("id_date_start").value;
+                var end = document.getElementById("id_date_end").value;
+                if (start == "") {
+                    start = "null";
+                }
+                if (end == "") {
+                    end = "null";
+                }
+                window.location.href = `${url}_${start}_${end}`;
             }
         </script>
         <div style="height: 150px"></div>

@@ -82,9 +82,13 @@ WSGI_APPLICATION = 'omzit_terminal.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': 'Valm0nts89',
+        'NAME': 'terminal',
+        'PASSWORD': 'Epass1',
+        'USER': 'admin',
+
+        # 'NAME': 'postgres',
+        # 'USER': 'postgres',
+        # 'PASSWORD': 'Valm0nts89',
         'HOST': 'localhost',
         # 'HOST': '192.168.8.163',
         # 'HOST': '192.168.8.30'
@@ -156,3 +160,11 @@ APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"
 # etc. See: https://djangopackages.org/grids/g/workers-queues-tasks/ for popular options).
 APSCHEDULER_RUN_NOW_TIMEOUT = 25  # Seconds
 # Запуск планировщика: python manage.py runscheduler
+
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.yandex.ru'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'omzit-report@yandex.ru'
+EMAIL_HOST_PASSWORD = 'lacwpquciwybdxki'
+DEFAULT_FROM_EMAIL = 'omzit-report'
+DEFAULT_TO_EMAIL = 'omzit-report'

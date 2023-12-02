@@ -1,6 +1,9 @@
 import datetime
 
 from django import forms
+from django.contrib.admin import widgets
+from django.utils.timezone import make_aware
+
 # from tehnolog.models import ProductModel
 from .models import ShiftTask, WorkshopSchedule, Doers, model_pattern, model_error_text, order_pattern, order_error_text
 from django.forms import ModelChoiceField
@@ -57,22 +60,20 @@ class SchedulerWorkplaceLabelDate(ModelChoiceField):  # переопределе
     """
 
     def label_from_instance(self, obj):
-        return obj.datetime_done
+        return obj.model_order_query
 
 
 class SchedulerWorkplace(forms.Form):
     """
     Форма для ввода графика РЦ
     """
-    # только pg
-    # query_set_wp = ShiftTask.objects.all().distinct('ws_number')
-    query_set_wp = ShiftTask.objects.all().distinct()
-    ws_number = SchedulerWorkplaceLabel(queryset=query_set_wp, empty_label='РЦ не выбран', label='Рабочий центр')
-    query_set_datetime_done = WorkshopSchedule.objects.filter(Q(order_status='запланировано') |
-                                                              Q(order_status='в работе'))
-    datetime_done = SchedulerWorkplaceLabelDate(queryset=query_set_datetime_done,
-                                                empty_label='Дата готовности не выбрана',
-                                                label='Планируемая дата готовности')
+    query_set_wp = ShiftTask.objects.all().distinct('ws_number')
+    ws_number = SchedulerWorkplaceLabel(queryset=query_set_wp, empty_label='Терминал не выбран', label='Терминал')
+    model_order_query_set = WorkshopSchedule.objects.filter(Q(order_status='запланировано') |
+                                                            Q(order_status='в работе'))
+    model_order_query = SchedulerWorkplaceLabelDate(queryset=model_order_query_set,
+                                                    empty_label='Не выбрано',
+                                                    label='Заказ-модель')
 
 
 class FiosLabel(ModelChoiceField):  # переопределение метода отображения строки результатов для ФИО
@@ -94,11 +95,11 @@ class FioDoer(forms.Form):
     def __init__(self, *args, **kwargs):
         if 'ws_number' in kwargs and kwargs['ws_number'] is not None:
             ws_number = kwargs.pop('ws_number')
-            datetime_done = kwargs.pop('datetime_done')
+            model_order_query = kwargs.pop('model_order_query')
             # query_set запроса СЗ
             qs_st_number = (ShiftTask.objects.filter  # выбор "не распределено", "брак", "не принято"
                             (Q(fio_doer='не распределено') | Q(st_status='брак') | Q(st_status='не принято'))
-                            ).filter(ws_number=ws_number, datetime_done=datetime_done, next_shift_task=None)
+                            ).filter(ws_number=ws_number, model_order_query=model_order_query, next_shift_task=None)
         else:
             qs_st_number = None
         # Вызов супер класса для создания поля st_number
@@ -120,18 +121,82 @@ class FioDoer(forms.Form):
                                    required=False)
 
 
-class DrawsUpload(forms.Form):
+class PlanBid(forms.Form):
+    """
+    Форма для ввода графика РЦ
+    """
+
+    order_query = forms.CharField(max_length=50, label='Имя заказа для служебной',
+                                  widget=forms.TextInput(attrs={'pattern': order_pattern, 'title': order_error_text}))
+
+    model_query = forms.CharField(max_length=50, label='Наименование изделия служебной',
+                                  widget=forms.TextInput(attrs={'pattern': model_pattern, 'title': model_error_text}))
+
+    workshop = forms.ChoiceField(choices=((0, 'Без сборки'), (1, 'Цех 1'), (2, 'Цех 2'), (3, 'Цех 3'), (4, 'Цех 4')),
+                                 label='Цех сборщик', required=False)
+    query_set_category = ProductCategory.objects.all()
+    category = forms.ModelChoiceField(queryset=query_set_category, empty_label='Категория не выбрана',
+                                      label='Категория заказа', required=True)  # выбор категории
+    datetime_done = forms.DateField(label='Планируемая дата готовности', required=True,
+                                    widget=forms.SelectDateWidget(empty_label=("год", "месяц", "день"),
+                                                                  years=(datetime.datetime.now().year,
+                                                                         datetime.datetime.now().year + 1)))
+
+
+class DailyReportForm(forms.Form):
+    """
+    Форма для заполнения ежедневного отчёта
+    """
+
+    day_plan = forms.DecimalField(min_value=0, max_digits=10, decimal_places=1, label='План день', required=False)
+    day_fact = forms.DecimalField(min_value=0, max_digits=10, decimal_places=1, label='Факт день')
+
+    personal_total = forms.IntegerField(min_value=0, label='Всего персонала', initial=0)
+    personal_shift = forms.IntegerField(min_value=0, label='Выход в дату персонала', initial=0)
+    personal_total_welders = forms.IntegerField(min_value=0, label='Всего сварщиков', initial=0)
+    personal_shift_welders = forms.IntegerField(min_value=0, label='Выход в дату сварщиков', initial=0)
+    personal_night_welders = forms.IntegerField(min_value=0, label='Всего сварщиков', initial=0)
+
+    personal_total_locksmiths = forms.IntegerField(min_value=0, label='Всего слесарей', initial=0)
+    personal_shift_locksmiths = forms.IntegerField(min_value=0, label='Выход в дату слесарей', initial=0)
+    personal_night_locksmiths = forms.IntegerField(min_value=0, label='Всего слесарей', initial=0)
+
+    personal_total_painters = forms.IntegerField(min_value=0, label='Всего сварщиков', initial=0)
+    personal_shift_painters = forms.IntegerField(min_value=0, label='Выход в дату сварщиков', initial=0)
+    personal_night_painters = forms.IntegerField(min_value=0, label='Всего сварщиков', initial=0)
+
+    personal_total_turners = forms.IntegerField(min_value=0, label='Всего слесарей', initial=0)
+    personal_shift_turners = forms.IntegerField(min_value=0, label='Выход в дату слесарей', initial=0)
+    personal_night_turners = forms.IntegerField(min_value=0, label='Выход в дату слесарей', initial=0)
+
+
+class ReportForm(forms.Form):
     """
     Форма ответа на заявку КД
     """
-    draw_files = MultipleFileField(label='Чертежи cdw',
-                                   widget=MultipleFileInput(attrs={'accept': ".cdw"}))
+    date_start = forms.DateField(
+        widget=widgets.AdminDateWidget(attrs={"class": "vDateField report_input"}),
+        label='c',
+        # initial=datetime.datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    )
+    date_end = forms.DateField(
+        widget=widgets.AdminDateWidget(attrs={"class": "vDateField report_input"}),
+        label='по',
+        # initial=datetime.datetime.now()
+    )
+
+    class Media:
+        css = {
+            'all': (
+                '/static/scheduler/css/widgets.css',
+            )
+        }
+        js = [
+            '/admin/jsi18n/',
+            '/static/admin/js/core.js',
+        ]
 
 
-class SendApplication(forms.Form):
-    """
-    Форма ответа на заявку КД
-    """
-    application_number = forms.CharField(max_length=50, label='Номер заявки')
-    application_name = forms.CharField(max_length=50, label='Имя заявки')
-    application_text = forms.CharField(widget=forms.Textarea, label='Текст заявки')
+class PlanResortHiddenForm(forms.Form):
+    day_plan_sum = forms.CharField(widget=forms.HiddenInput(attrs={"id": "id_hidden_input", 'form': "fil_days_form"}),
+                                   required=True)

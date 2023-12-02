@@ -2,6 +2,7 @@ import datetime
 
 from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models import Avg
 from django.forms import ModelChoiceField
 from django.utils import timezone
 
@@ -151,37 +152,78 @@ class ShiftTask(models.Model):
         verbose_name = 'Сменное задание'
         verbose_name_plural = 'Сменные задания'
 
-    def save(self, *args, **kwargs):
-        print("save")
-        self.calc_job_duration()
-        super().save(*args, **kwargs)
 
-    def calc_job_duration(self):
-        """
-        Вычисляет длительность работы по изменению статусов
-        """
-        if self.pk:
-            current_st_status = ShiftTask.objects.get(pk=self.pk).st_status
-            print(self.pk, current_st_status, self.st_status)
-            if self.st_status in ("пауза", "принято", "брак"):
-                if current_st_status in ("в работе", "ожидание мастера", "ожидание контролёра"):
+class DailyReport(models.Model):
+    """
+    Данные для ежедневных отчётов
+    """
+    objects = models.Manager()
+    calendar_day = models.DateField(verbose_name="Дата отчёта")
+    day_plan = models.DecimalField(decimal_places=1, max_digits=10, verbose_name="План на день", default=0)
+    day_fact = models.DecimalField(decimal_places=1, max_digits=10, verbose_name="Факт за день", default=0)
 
-                    if not self.job_duration:
-                        self.job_duration = datetime.timedelta(0)
+    aver_fact = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Отставание/опережение плана",
+                                         default=0)
 
-                    if self.datetime_job_resume:
-                        #  если остановка работы не первая
-                        #  добавляем длительность со времени возобновления работы
-                        self.job_duration += timezone.now() - self.datetime_job_resume
-                    else:
-                        #  если первая остановка работы
-                        #  добавляем длительность со времени начала работы
-                        self.job_duration += timezone.now() - self.datetime_job_start
+    day_plan_rate = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="% выполнения плана за день",
+                                        default=0)
 
-            elif self.st_status in ("в работе",):
-                # после возобновления работы после паузы устанавливаем текущее время для поля datetime_job_resume
-                if current_st_status == "пауза":
-                    self.datetime_job_resume = timezone.now()
-            else:
-                print("Else", self.pk, current_st_status, self.st_status)
+    plan_sum = models.DecimalField(decimal_places=1, max_digits=10, verbose_name="Всего план на дату", default=0)
+    fact_sum = models.DecimalField(decimal_places=1, max_digits=10, verbose_name="Всего факт на дату", default=0)
 
+    plan_done_rate = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="% выполнения плана",
+                                         default=0)
+    fact_done_rate = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Фактический % выполнения плана",
+                                         default=0)
+    plan_loos_rate = models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Отставание/опережение плана",
+                                         default=0)
+    day_fails = models.PositiveSmallIntegerField(verbose_name="Случаев брака за день", default=0)
+    day_save_violations = models.PositiveSmallIntegerField(verbose_name="Случаев нарушений ОТПБ за день", default=0)
+    month_plan_data = models.ForeignKey(to='MonthPlans', on_delete=models.PROTECT,
+                                        related_name="month_plan_table",
+                                        null=True, blank=True,
+                                        verbose_name="Месяц планирования")
+    workshop = models.PositiveSmallIntegerField(verbose_name="Цех", default=0)
+    # работники
+    personal_total = models.PositiveSmallIntegerField(verbose_name='Всего персонала в цехе', default=0)
+    personal_shift = models.PositiveSmallIntegerField(verbose_name='Выход в дату персонала', default=0)
+
+    personal_total_welders = models.PositiveSmallIntegerField(verbose_name='Всего сварщиков', default=0)
+    personal_shift_welders = models.PositiveSmallIntegerField(verbose_name='Выход в дату сварщиков', default=0)
+    personal_night_welders = models.PositiveSmallIntegerField(verbose_name='Выход ночь сварщики', default=0)
+
+    personal_total_locksmiths = models.PositiveSmallIntegerField(verbose_name='Всего слесарей', default=0)
+    personal_shift_locksmiths = models.PositiveSmallIntegerField(verbose_name='Выход в дату слесарей', default=0)
+    personal_night_locksmiths = models.PositiveSmallIntegerField(verbose_name='Выход ночь слесаря', default=0)
+
+    personal_total_painters = models.PositiveSmallIntegerField(verbose_name='Всего маляров', default=0)
+    personal_shift_painters = models.PositiveSmallIntegerField(verbose_name='Выход маляров', default=0)
+    personal_night_painters = models.PositiveSmallIntegerField(verbose_name='Выход ночь маляры', default=0)
+
+    personal_total_turners = models.PositiveSmallIntegerField(verbose_name='Всего токарей', default=0)
+    personal_shift_turners = models.PositiveSmallIntegerField(verbose_name='Выход токарей', default=0)
+    personal_night_turners = models.PositiveSmallIntegerField(verbose_name='Выход ночь токаря', default=0)
+
+
+
+
+
+    class Meta:
+        db_table = "report"
+        verbose_name = 'Ежедневный отчёт'
+        verbose_name_plural = 'Ежедневные отчёты'
+
+
+class MonthPlans(models.Model):
+    """
+    Ежемесячные значения плана
+    """
+    objects = models.Manager()
+    month_plan = models.DateField(verbose_name="Месяц планирования")
+    month_plan_amount = models.DecimalField(decimal_places=1, max_digits=10, verbose_name="План на месяц в н/ч")
+    workshop = models.PositiveSmallIntegerField(verbose_name="Цех", default=0)
+
+    class Meta:
+        db_table = "month_plan_table"
+        verbose_name = 'План на месяц в н/ч'
+        verbose_name_plural = 'Планы на месяц в н/ч'
